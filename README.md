@@ -1,0 +1,2 @@
+# AFF
+Annotated fasta format
