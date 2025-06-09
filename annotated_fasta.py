@@ -36,6 +36,8 @@ def annotated_fasta_load(in_file: str):  # , _mark=None
                 af_sequences[ac] = {'seq': ''}
                 for extra in ac_lst[1:]:
                     ex_lst = extra.split('=')
+                    if len(ex_lst) < 2:
+                        continue
                     af_sequences[ac][ex_lst[0]] = ex_lst[1]
                     if ex_lst[0] not in name_tags:
                         name_tags.append(ex_lst[0])
