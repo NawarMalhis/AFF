@@ -31,7 +31,7 @@ def aff_load_prd_caid_scores(af, sc_caid_file, prd):
                 del af['data'][ac]['scores'][prd]
 
 
-def aff_load_caid_scores(af, scores_path, prd_list, remove_missing_scores=False):
+def aff_load_caid_scores_single_file(af, scores_path, prd_list, remove_missing_scores=False):
     path_files = os.listdir(scores_path)
     prd_cnt = {}
     for prd in prd_list:
@@ -49,11 +49,18 @@ def aff_load_caid_scores(af, scores_path, prd_list, remove_missing_scores=False)
             used_prd_set.add(prd)
 
     if remove_missing_scores:
-        for ac in ac_list:
-            for prd in used_prd_set:
-                if prd not in af['data'][ac]['scores']:
-                    del af['data'][ac]
-                    break
+        aff_remove_missing_scores(af)
     return used_prd_set
 
 
+def aff_remove_missing_scores(af):
+    used_prd_set = set()
+    ac_list = list(af['data'].keys())
+    for ac in ac_list:
+        for prd in af['data'][ac]['scores']:
+            used_prd_set.add(prd)
+    for ac in ac_list:
+        for prd in used_prd_set:
+            if prd not in af['data'][ac]['scores']:
+                del af['data'][ac]
+                break

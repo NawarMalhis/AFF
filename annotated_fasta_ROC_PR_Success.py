@@ -9,18 +9,18 @@ colors_list = ['red', 'blue', 'forestgreen', 'limegreen', 'brown', 'pink', 'toma
 
 
 # this add 'index' for what to delete and 'Y'
-def mask_ac(af1, tag):
+def aff_mask_ac(af1, tag):
     msk = list(af1[tag].replace('1', '0').replace('-', '1'))
     msk2 = [eval(i) for i in msk]  # list of ints
     af1['index'] = np.nonzero(msk2)  # Return the indices of the elements that are non-zero (needs not to be included).
     af1['Y'] = [eval(i) for i in np.delete(list(af1[tag]), af1['index'])] # replace eval with int
 
 
-def get_yx_dict(af, tag):
+def aff_get_yx_dict(af, tag):
     yx_dict = {}
     prd_list = []
     for ac in af['data']:
-        mask_ac(af['data'][ac], tag)
+        aff_mask_ac(af['data'][ac], tag)
         if 'scores' in af['data'][ac]:
             for prd in af['data'][ac]['scores']:
                 if prd not in prd_list:
@@ -41,26 +41,34 @@ def get_yx_dict(af, tag):
     return yx_dict
 
 
-def roc_figure(prd_use, af, tag, title=None, display=True, color_dict=None, min_auc=0.5, out_file=None):
+def aff_roc_figure(prd_use, af, tag, title=None, display=True, color_dict=None, min_auc=0.5,
+                   sort_auc=True, out_file=None, auc_file=None):
     if title is None:
         title = tag
-    yx_dict = get_yx_dict(af, tag)
+    auc_out = None
+    yx_dict = aff_get_yx_dict(af, tag)
     print(f"af size:\t{len(af['data'])}")
     auc_dict = {}
     plt.rcParams.update({'font.size': 18})
     plt.rcParams['figure.figsize'] = [9.5, 9]
     for prd in prd_use:
         auc_dict[prd] = roc_auc_score(yx_dict[prd]['yy'], yx_dict[prd]['sc'])
+    if sort_auc:
+        auc_dict = dict(sorted(auc_dict.items(), key=lambda item: item[1], reverse=True))
     if display or out_file is not None:
+        if auc_file:
+            auc_out = open(auc_file, 'w')
+        print("Predictor\tAUC\tmissing_seq\ttotal_AAs", file=auc_out)
         gray_lbl = 'General Protein Binding Tools'
         cc = 0
-        for prd in prd_use:
+        for prd in auc_dict:
+            print(f"{prd}\t{auc_dict[prd]:1.4f}\t{len(yx_dict[prd]['miss_ac'])}\t{len(yx_dict[prd]['yy'])}",
+                  file=auc_out)
             if auc_dict[prd] < min_auc:
                 continue
             fpr, tpr, _ = roc_curve(yx_dict[prd]['yy'], yx_dict[prd]['sc'])
             ls = 'solid'
             lbl = f"{prd} ({auc_dict[prd]:1.3f})"
-            print(f"{prd}\t{len(yx_dict[prd]['yy'])}\t{len(yx_dict[prd]['miss_ac'])}\t{auc_dict[prd]:1.4f}")
             cc += 1
             clr = 'gray'
             if color_dict is not None:
@@ -87,16 +95,16 @@ def roc_figure(prd_use, af, tag, title=None, display=True, color_dict=None, min_
     return auc_dict
 
 
-def filter_for_success(af, cut=5):
+def aff_filter_for_success(af, tag, cut=5):
     ac_list = list(af['data'].keys())
     for ac in ac_list:
-        cnt_0 = af['data'][ac]['MoRFTest'].count('0')
-        cnt_1 = af['data'][ac]['MoRFTest'].count('1')
+        cnt_0 = af['data'][ac][tag].count('0')
+        cnt_1 = af['data'][ac][tag].count('1')
         if cnt_0 < cut or cnt_1 < cut:
             del af['data'][ac]
 
 
-def success(af, tag, prd_list):
+def aff_success(af, tag, prd_list):
     succ_dict = {}
     for prd in prd_list:
         succ_cnt = 0.0
@@ -110,35 +118,35 @@ def success(af, tag, prd_list):
                     cnt[int(tg)] += 1
             succ_cnt += int(float(scores_c01[1]) / cnt[1] > float(scores_c01[0]) / cnt[0])
         succ_dict[prd] = float(succ_cnt) / len(af['data'])
-    print(len(af['data']))
+
     return succ_dict
 
 
-def get_high(af, tag):
-    if tag != 'N_bind':
-        return
-    n_max = 0.6
-    for ac in af['data']:
-        sz = len(af['data'][ac]['seq'])
-        for ii in range(sz):
-            if af['data'][ac]['IPA_nucleic'][ii] > n_max and af['data'][ac]['N_bind'][ii] == '1':
-                n_max = af['data'][ac]['IPA_nucleic'][ii]
-    print(f"n_max:\t{n_max}")  # 0.87638
-    prot_nucleotide = {}
-    for ac in af['data']:
-        sz = len(af['data'][ac]['seq'])
-        for ii in range(sz):
-            if af['data'][ac]['IPA_nucleic'][ii] > n_max and af['data'][ac]['N_bind'][ii] == '0':
-                if ac not in prot_nucleotide:
-                    prot_nucleotide[ac] = 0
-                prot_nucleotide[ac] += 1
-                print(ac, af['data'][ac]['seq'][ii], ii, af['data'][ac]['IPA_nucleic'][ii], af['data'][ac]['N_bind'][ii])
+# def get_high(af, tag):
+#     if tag != 'N_bind':
+#         return
+#     n_max = 0.6
+#     for ac in af['data']:
+#         sz = len(af['data'][ac]['seq'])
+#         for ii in range(sz):
+#             if af['data'][ac]['IPA_nucleic'][ii] > n_max and af['data'][ac]['N_bind'][ii] == '1':
+#                 n_max = af['data'][ac]['IPA_nucleic'][ii]
+#     print(f"n_max:\t{n_max}")  # 0.87638
+#     prot_nucleotide = {}
+#     for ac in af['data']:
+#         sz = len(af['data'][ac]['seq'])
+#         for ii in range(sz):
+#             if af['data'][ac]['IPA_nucleic'][ii] > n_max and af['data'][ac]['N_bind'][ii] == '0':
+#                 if ac not in prot_nucleotide:
+#                     prot_nucleotide[ac] = 0
+#                 prot_nucleotide[ac] += 1
+#                 print(ac, af['data'][ac]['seq'][ii], ii, af['data'][ac]['IPA_nucleic'][ii], af['data'][ac]['N_bind'][ii])
+#
+#     for ac in prot_nucleotide:
+#         print(ac, prot_nucleotide[ac])
 
-    for ac in prot_nucleotide:
-        print(ac, prot_nucleotide[ac])
 
-
-def get_aps(yy, sc):
+def aff_get_aps(yy, sc):
     lst = []
     precision = np.zeros(len(yy), dtype='float32')
     for y, s in zip(yy, sc):
@@ -151,7 +159,7 @@ def get_aps(yy, sc):
         precision[ii] = accumulated / (ii + 1)
     return np.average(precision)
 
-def precision_recall(y, sc, steps=400):
+def aff_precision_recall(y, sc, steps=400):
     pre_rec = {'precision': np.zeros(steps+1, dtype='float32'), 'recall': np.zeros(steps+1, dtype='float32')}
     mn = np.amin(sc)
     mx = np.amax(sc)
@@ -170,11 +178,11 @@ def precision_recall(y, sc, steps=400):
     return pre_rec
 
 
-def pr_figure(prd_use, af, tag, title=None, min_recall=0.05, display=True, color_dict=None, out_file=None):
+def aff_pr_figure(prd_use, af, tag, title=None, min_recall=0.05, display=True, color_dict=None, out_file=None):
     # APS: average precision score
     if title is None:
         title = tag
-    yx_dict = get_yx_dict(af, tag)
+    yx_dict = aff_get_yx_dict(af, tag)
 
     max_precision = 0.0
     prd = prd_use[0]
@@ -187,8 +195,8 @@ def pr_figure(prd_use, af, tag, title=None, min_recall=0.05, display=True, color
 
     for prd in prd_use:
         ls = 'gray'
-        pre_rec = precision_recall(yx_dict[prd]['yy'], yx_dict[prd]['sc'], steps=200)
-        pre_rec['APS'] = get_aps(yy=yx_dict[prd]['yy'], sc=yx_dict[prd]['sc'])
+        pre_rec = aff_precision_recall(yx_dict[prd]['yy'], yx_dict[prd]['sc'], steps=200)
+        pre_rec['APS'] = aff_get_aps(yy=yx_dict[prd]['yy'], sc=yx_dict[prd]['sc'])
         print(f"{prd}:\t{pre_rec['APS']:0.4}")
         # exit(0)
         j0 = 0
