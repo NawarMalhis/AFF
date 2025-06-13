@@ -1,33 +1,8 @@
 from annotated_fasta import *
 import os
-from lib_prd import get_ac_list
 
 
-def load_cross_disprot_caid_af(dis_prot_file, caid_file, verbose=False):
-    dp_af = annotated_fasta_load(dis_prot_file)
-    caid_af = annotated_fasta_load(caid_file)
-
-    ac_list = list(caid_af['data'])
-    for ac in ac_list:
-        if ac in dp_af['data']:
-            caid_af['data'][ac] = dp_af['data'][ac]
-        else:
-            lst = get_ac_list(seq=caid_af['data'][ac]['seq'])
-            if verbose:
-                print(ac, len(caid_af['data'][ac]['seq']), caid_af['data'][ac]['seq'])
-                print(lst, '\n')
-            del caid_af['data'][ac]
-    caid_af['metadata']['tags'] = dp_af['metadata']['tags']
-    return caid_af
-
-
-def annotated_fasta_add_scores(af):
-    for ac in af['data']:
-        if 'scores' not in af['data'][ac]:
-            af['data'][ac]['scores'] = {}
-
-
-def annotated_fasta_load_prd_caid_scores(af, sc_caid_file, prd, del_no_scores=True):
+def aff_load_prd_caid_scores(af, sc_caid_file, prd):
     with open(sc_caid_file, 'r') as fin:
         ac = ''
         for line in fin:
@@ -49,23 +24,36 @@ def annotated_fasta_load_prd_caid_scores(af, sc_caid_file, prd, del_no_scores=Tr
             af['data'][ac]['scores'][prd].append(sc)
     ac_list = list(af['data'].keys())
     for ac in ac_list:
-        if 'scores' not in af['data'][ac]:
-            if del_no_scores:
-                del af['data'][ac]
-            continue
+        # foe each predictor
         if prd in af['data'][ac]['scores']:
             if len(af['data'][ac]['scores'][prd]) != len(af['data'][ac]['seq']):
-                print(prd, ac, 'Bad scores')
+                # scores do not match this seq
                 del af['data'][ac]['scores'][prd]
 
 
-
-def annotated_fasta_load_caid_scores(af, scores_path, prd_list):
+def aff_load_caid_scores(af, scores_path, prd_list, remove_missing_scores=False):
     path_files = os.listdir(scores_path)
-    annotated_fasta_add_scores(af)
-    for prd_f in prd_list:
-        if prd_f not in path_files:
-            print(f"{prd_f} not found")
+    prd_cnt = {}
+    for prd in prd_list:
+        if f"{prd}.caid" not in path_files:
+            print(f"{prd} not found")
             continue
-        annotated_fasta_load_prd_caid_scores(af, sc_caid_file=f'{scores_path}{prd_f}', prd=prd_f)
+        prd_cnt[prd] = 0
+        aff_load_prd_caid_scores(af, sc_caid_file=f'{scores_path}{prd}.caid', prd=prd)
+
+    used_prd_set = set()
+    ac_list = list(af['data'].keys())
+    for ac in ac_list:
+        for prd in af['data'][ac]['scores']:
+            prd_cnt[prd] += 1
+            used_prd_set.add(prd)
+
+    if remove_missing_scores:
+        for ac in ac_list:
+            for prd in used_prd_set:
+                if prd not in af['data'][ac]['scores']:
+                    del af['data'][ac]
+                    break
+    return used_prd_set
+
 
