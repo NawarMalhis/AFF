@@ -187,18 +187,17 @@ def aff_pr_figure(prd_use, af, tag, title=None, min_recall=0.05, display=True, c
     max_precision = 0.0
     prd = prd_use[0]
     h_line = sum(yx_dict[prd]['yy']) / len(yx_dict[prd]['yy'])
-    print(f"{h_line:1.4}")
+    print(f"-----\t{h_line:1.4}")
     plt.rcParams.update({'font.size': 18})
     plt.rcParams['figure.figsize'] = [9.5, 9]
     plt.title(f"{title}", fontsize=18)
     gray_lbl = 'General Protein Binding Tools'
 
     for prd in prd_use:
-        ls = 'gray'
+        ls = 'solid'
         pre_rec = aff_precision_recall(yx_dict[prd]['yy'], yx_dict[prd]['sc'], steps=200)
         pre_rec['APS'] = aff_get_aps(yy=yx_dict[prd]['yy'], sc=yx_dict[prd]['sc'])
         print(f"{prd}:\t{pre_rec['APS']:0.4}")
-        # exit(0)
         j0 = 0
         for j in range(len(pre_rec['recall'])):
             if max_precision < pre_rec['precision'][j]:
@@ -213,7 +212,7 @@ def aff_pr_figure(prd_use, af, tag, title=None, min_recall=0.05, display=True, c
             j0 += 1
         pre_rec['precision'][0] = h_line
         pre_rec['recall'][0] = 0.999
-        clr = 'gray'
+        clr = None
         if color_dict is not None:
             if prd in color_dict:
                 clr = color_dict[prd]['color']
@@ -225,7 +224,7 @@ def aff_pr_figure(prd_use, af, tag, title=None, min_recall=0.05, display=True, c
             gray_lbl = None
         else:
             lbl = f'{prd} ({pre_rec["APS"]:.3})'
-            plt.plot(pre_rec['recall'][:j0], pre_rec['precision'][:j0], color=clr, linestyle=ls, lw=2, label=lbl)
+            plt.plot(pre_rec['recall'][:j0], pre_rec['precision'][:j0], linestyle=ls, lw=2, label=lbl)
     plt.plot([0, 1], [h_line, h_line], color="navy", lw=1, linestyle="--", label=f"Priors ({h_line:.3})")
     plt.ylim((0, max_precision + 0.05))
     plt.xlim((0, 1.0))
