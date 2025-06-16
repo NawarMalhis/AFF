@@ -216,6 +216,18 @@ def aff_merge_simple(af_to, af_from):
 #         merged = annotated_fasta_merge2(merged, af)
 #     return merged
 
+def aff_remove_missing_scores(af):
+    used_prd_set = set()
+    ac_list = list(af['data'].keys())
+    for ac in ac_list:
+        for prd in af['data'][ac]['scores']:
+            used_prd_set.add(prd)
+    for ac in ac_list:
+        for prd in used_prd_set:
+            if prd not in af['data'][ac]['scores']:
+                del af['data'][ac]
+                break
+
 
 def aff_remove_no_1_tag(af, tag):
     if tag not in af['metadata']['tags']:
