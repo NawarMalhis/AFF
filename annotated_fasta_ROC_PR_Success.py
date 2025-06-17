@@ -127,7 +127,6 @@ def aff_roc(af, tag, prd_list, title=None, min_auc=0.5, display=True, line_forma
 
 def aff_precision_recall(af, tag, prd_list, title=None, min_recall=0.05, display=True, line_format_dict=None,
                          figure_file=None, aps_file=None, legend_font_size=12, plotted_list=None):
-    print(len(plotted_list))
     if title is None:
         title = tag
     lf_dict = _fill_line_format_dict(prd_list, line_format_dict)
@@ -136,43 +135,43 @@ def aff_precision_recall(af, tag, prd_list, title=None, min_recall=0.05, display
     aps_dict = {}
     plt.rcParams.update({'font.size': 18})
     plt.rcParams['figure.figsize'] = [10, 9]
+    for prd in prd_list:
+        aps_dict[prd] = average_precision_score(yx_dict[prd]['yy'], yx_dict[prd]['sc'])
+
     max_precision = 0.0
     data_priors = sum(yx_dict[prd_list[0]]['yy']) / len(yx_dict[prd_list[0]]['yy'])
-    print(f"-----\t{data_priors:1.4}")
     gray_lbl = 'General Protein Binding Tools'
-    for prd in plotted_list:
-        precision, recall, thresholds = precision_recall_curve(yx_dict[prd]['yy'], yx_dict[prd]['sc'])
-        aps = average_precision_score(yx_dict[prd]['yy'], yx_dict[prd]['sc'])
-        pre_rec = {'precision': precision, 'recall': recall}
+    for formated in [True, False]:
+        for prd in plotted_list:
+            if lf_dict[prd]['formated'] != formated:
+                continue
+            precision, recall, thresholds = precision_recall_curve(yx_dict[prd]['yy'], yx_dict[prd]['sc'])
+            if prd in line_format_dict:
+                clr = lf_dict[prd]['color']
+                ls = lf_dict[prd]['ls']
+                lw = lf_dict[prd]['lw']
+                lbl = f"{prd} ({aps_dict[prd]:1.3f})"
+            else:
+                clr = 'gray'
+                ls = 'solid'
+                lw = 1
+                lbl = gray_lbl
+                gray_lbl = None
+            j0 = 0
+            for j in range(len(recall)):
+                if max_precision < precision[j]:
+                    max_precision = precision[j]
+                if recall[j] < min_recall:
+                    j0 = j - 1
+                    break
 
-        # if prd not in plotted_list:
-        #     continue
-        if prd in line_format_dict:
-            clr = lf_dict[prd]['color']
-            ls = lf_dict[prd]['ls']
-            lw = lf_dict[prd]['lw']
-            lbl = f"{prd} ({aps:1.3f})"
-        else:
-            clr = 'gray'
-            ls = 'solid'
-            lw = 1
-            lbl = gray_lbl
-            gray_lbl = None
-        j0 = 0
-        for j in range(len(pre_rec['recall'])):
-            if max_precision < pre_rec['precision'][j]:
-                max_precision = pre_rec['precision'][j]
-            if pre_rec['recall'][j] < min_recall:
-                j0 = j - 1
-                break
-
-        if (j0 + 1) < len(pre_rec['recall']):
-            pre_rec['precision'][j0] = pre_rec['precision'][j0-1]
-            pre_rec['recall'][j0] = min_recall
-            j0 += 1
-        pre_rec['precision'][0] = data_priors
-        pre_rec['recall'][0] = 0.999
-        plt.plot(pre_rec['recall'][:j0], pre_rec['precision'][:j0], color=clr, lw=lw, linestyle=ls, label=lbl)
+            if (j0 + 1) < len(recall):
+                precision[j0] = precision[j0-1]
+                recall[j0] = min_recall
+                j0 += 1
+            precision[0] = data_priors
+            recall[0] = 0.999
+            plt.plot(recall[:j0], precision[:j0], color=clr, lw=lw, linestyle=ls, label=lbl)
     plt.plot([0, 1], [data_priors, data_priors], color="navy", lw=1, linestyle="--",
              label=f"Priors ({data_priors:.3})")
     plt.ylim((0, max_precision + 0.05))
