@@ -68,7 +68,6 @@ def _filter_for_success(af, tag, cut=5):
         cnt_1 = af['data'][ac][tag].count('1')
         if cnt_0 < cut or cnt_1 < cut:
             del af['data'][ac]
-    print("Success_data:\t", len(af['data']))
 
 
 def aff_roc(af, tag, prd_list, title=None, min_auc=0.5, display=True, line_format_dict=None,
@@ -190,14 +189,12 @@ def aff_precision_recall(af, tag, prd_list, title=None, min_recall=0.05, display
     return aps_dict
 
 
-def aff_success_rate(af, tag, prd_list, success_rate_file=None):
+def aff_success_rate(af, tag, prd_list, success_rate_file=None, success_data_file=None):
     af_copy = copy.deepcopy(af)
     aff_remove_missing_scores(af_copy)
     _filter_for_success(af_copy, tag=tag, cut=5)
-    sr_out = None
-    if success_rate_file:
-        sr_out = open(success_rate_file, 'w')
-    print("Predictor\tAUC\tmissing_seq\ttotal_AAs", file=sr_out)
+    if success_data_file is not None:
+        aff_save(af=af_copy, f_name=success_data_file)
     success_rate_dict = {}
     for prd in prd_list:
         success_cnt = 0.0
@@ -211,7 +208,11 @@ def aff_success_rate(af, tag, prd_list, success_rate_file=None):
                     cnt[int(tg)] += 1
             success_cnt += int(float(scores_c01[1]) / cnt[1] > float(scores_c01[0]) / cnt[0])
         success_rate_dict[prd] = float(success_cnt) / len(af_copy['data'])
+    sr_out = None
+    if success_rate_file:
+        sr_out = open(success_rate_file, 'w')
+    print("Predictor\tSuccess Rate", file=sr_out)
+    for prd in prd_list:
         print(f"{prd}\t{success_rate_dict[prd]:1.4f}", file=sr_out)
-
     return success_rate_dict
 
