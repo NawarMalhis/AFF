@@ -190,23 +190,28 @@ def aff_precision_recall(af, tag, prd_list, title=None, min_recall=0.05, display
     return aps_dict
 
 
-def aff_success(af, tag, prd_list):
-    caf = copy.deepcopy(af)
-    aff_remove_missing_scores(caf)
-    _filter_for_success(caf, tag=tag, cut=5)
-    succ_dict = {}
+def aff_success_rate(af, tag, prd_list, success_rate_file=None):
+    af_copy = copy.deepcopy(af)
+    aff_remove_missing_scores(af_copy)
+    _filter_for_success(af_copy, tag=tag, cut=5)
+    sr_out = None
+    if success_rate_file:
+        sr_out = open(success_rate_file, 'w')
+    print("Predictor\tAUC\tmissing_seq\ttotal_AAs", file=sr_out)
+    success_rate_dict = {}
     for prd in prd_list:
-        succ_cnt = 0.0
-        for ac in caf['data']:
+        success_cnt = 0.0
+        for ac in af_copy['data']:
             scores_c01 = [0, 0]
             cnt = [0, 0]
-            for ii in range(len(caf['data'][ac]['seq'])):
-                tg = caf['data'][ac][tag][ii]
+            for ii in range(len(af_copy['data'][ac]['seq'])):
+                tg = af_copy['data'][ac][tag][ii]
                 if tg in ['0', '1']:
-                    scores_c01[int(tg)] += caf['data'][ac]['scores'][prd][ii]
+                    scores_c01[int(tg)] += af_copy['data'][ac]['scores'][prd][ii]
                     cnt[int(tg)] += 1
-            succ_cnt += int(float(scores_c01[1]) / cnt[1] > float(scores_c01[0]) / cnt[0])
-        succ_dict[prd] = float(succ_cnt) / len(caf['data'])
+            success_cnt += int(float(scores_c01[1]) / cnt[1] > float(scores_c01[0]) / cnt[0])
+        success_rate_dict[prd] = float(success_cnt) / len(af_copy['data'])
+        print(f"{prd}\t{success_rate_dict[prd]:1.4f}", file=sr_out)
 
-    return succ_dict
+    return success_rate_dict
 
