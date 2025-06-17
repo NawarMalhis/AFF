@@ -127,27 +127,37 @@ def aff_roc(af, tag, prd_list, title=None, min_auc=0.5, display=True, line_forma
 
 def aff_precision_recall(af, tag, prd_list, title=None, min_recall=0.05, display=True, line_format_dict=None,
                          figure_file=None, aps_file=None, legend_font_size=12, plotted_list=None):
-    line_format_dict = _fill_line_format_dict(prd_list, line_format_dict)
+    print(len(plotted_list))
     if title is None:
         title = tag
+    lf_dict = _fill_line_format_dict(prd_list, line_format_dict)
+    aps_out = None
     yx_dict = _get_yx_dict(af, tag)
-    max_precision = 0.0
-    prd = prd_list[0]
-    h_line = sum(yx_dict[prd]['yy']) / len(yx_dict[prd]['yy'])
-    print(f"-----\t{h_line:1.4}")
+    aps_dict = {}
     plt.rcParams.update({'font.size': 18})
-    plt.rcParams['figure.figsize'] = [9.5, 9]
-    plt.title(f"{title}", fontsize=18)
-
-    for prd in prd_list:
-        clr = line_format_dict[prd]['color']
-        ls = line_format_dict[prd]['ls']
-        lw = line_format_dict[prd]['lw']
+    plt.rcParams['figure.figsize'] = [10, 9]
+    max_precision = 0.0
+    data_priors = sum(yx_dict[prd_list[0]]['yy']) / len(yx_dict[prd_list[0]]['yy'])
+    print(f"-----\t{data_priors:1.4}")
+    gray_lbl = 'General Protein Binding Tools'
+    for prd in plotted_list:
         precision, recall, thresholds = precision_recall_curve(yx_dict[prd]['yy'], yx_dict[prd]['sc'])
         aps = average_precision_score(yx_dict[prd]['yy'], yx_dict[prd]['sc'])
         pre_rec = {'precision': precision, 'recall': recall}
-        lbl = f"{prd} ({aps:1.3f})"
-        print(f"{prd}:\t{aps:0.4}")
+
+        # if prd not in plotted_list:
+        #     continue
+        if prd in line_format_dict:
+            clr = lf_dict[prd]['color']
+            ls = lf_dict[prd]['ls']
+            lw = lf_dict[prd]['lw']
+            lbl = f"{prd} ({aps:1.3f})"
+        else:
+            clr = 'gray'
+            ls = 'solid'
+            lw = 1
+            lbl = gray_lbl
+            gray_lbl = None
         j0 = 0
         for j in range(len(pre_rec['recall'])):
             if max_precision < pre_rec['precision'][j]:
@@ -160,17 +170,17 @@ def aff_precision_recall(af, tag, prd_list, title=None, min_recall=0.05, display
             pre_rec['precision'][j0] = pre_rec['precision'][j0-1]
             pre_rec['recall'][j0] = min_recall
             j0 += 1
-        pre_rec['precision'][0] = h_line
+        pre_rec['precision'][0] = data_priors
         pre_rec['recall'][0] = 0.999
-        clr = None
-        plt.plot(pre_rec['recall'][:j0], pre_rec['precision'][:j0], color=clr, lw=lw, linestyle=ls,
-                 label=lbl)
-    plt.plot([0, 1], [h_line, h_line], color="navy", lw=1, linestyle="--", label=f"Priors ({h_line:.3})")
+        plt.plot(pre_rec['recall'][:j0], pre_rec['precision'][:j0], color=clr, lw=lw, linestyle=ls, label=lbl)
+    plt.plot([0, 1], [data_priors, data_priors], color="navy", lw=1, linestyle="--",
+             label=f"Priors ({data_priors:.3})")
     plt.ylim((0, max_precision + 0.05))
     plt.xlim((0, 1.0))
     plt.legend(loc="upper right", fontsize=legend_font_size)
     plt.ylabel("Precision", fontsize=16)
     plt.xlabel("Recall", fontsize=16)
+    plt.title(f"{title}", fontsize=18)
     if figure_file is not None:
         plt.savefig(figure_file, dpi=300)
     if display:
