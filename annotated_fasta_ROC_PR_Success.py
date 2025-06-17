@@ -42,18 +42,21 @@ def _get_yx_dict(af, tag):
 
 def _fill_line_format_dict(prd_list, line_format_dict):
     lf_dict = {}
-    for prd in prd_list:
-        if prd not in lf_dict:
-            lf_dict[prd] = {}
-        for ff in ['lw', 'ls', 'color']:
-            lf_dict[prd][ff] = None
     if line_format_dict:
-        for prd in line_format_dict:
-            if prd not in lf_dict:
+        for prd in prd_list:
+            if prd not in line_format_dict:
+                lf_dict[prd] = {'lw': 1, 'ls': 'solid', 'color': 'gray', 'formated': False}
                 continue
+            lf_dict[prd] = {'formated': True}
             for ff in ['lw', 'ls', 'color']:
                 if ff in line_format_dict[prd]:
                     lf_dict[prd][ff] = line_format_dict[prd][ff]
+                else:
+                    lf_dict[prd][ff] = None
+    else:
+        for prd in prd_list:
+            if prd not in lf_dict:
+                lf_dict[prd] = {'lw': None, 'ls': None, 'color': None, 'formated': False}
     return lf_dict
 
 
@@ -67,11 +70,11 @@ def _filter_for_success(af, tag, cut=5):
     print("Success_data:\t", len(af['data']))
 
 
-def aff_roc_figure(prd_list, af, tag, title=None, display=True, min_auc=0.5, line_format_dict=None,
-                   sort_auc=True, out_file=None, auc_file=None):  #
+def aff_roc(af, tag, prd_list, title=None, min_auc=0.5, display=True, line_format_dict=None,
+            figure_file=None, auc_file=None, legend_font_size=12, sort_auc=True):  #
     if title is None:
         title = tag
-    prd_used = []
+    plotted_list = []
     lf_dict = _fill_line_format_dict(prd_list=prd_list, line_format_dict=line_format_dict)
 
     auc_out = None
@@ -83,37 +86,95 @@ def aff_roc_figure(prd_list, af, tag, title=None, display=True, min_auc=0.5, lin
         auc_dict[prd] = roc_auc_score(yx_dict[prd]['yy'], yx_dict[prd]['sc'])
     if sort_auc:
         auc_dict = dict(sorted(auc_dict.items(), key=lambda item: item[1], reverse=True))
-    if display or out_file is not None:
+
+    if display or figure_file is not None:
         if auc_file:
             auc_out = open(auc_file, 'w')
         print("Predictor\tAUC\tmissing_seq\ttotal_AAs", file=auc_out)
         gray_lbl = 'General Protein Binding Tools'
-        cc = 0
-        for prd in auc_dict:
-            print(f"{prd}\t{auc_dict[prd]:1.4f}\t{len(yx_dict[prd]['miss_ac'])}\t{len(yx_dict[prd]['yy'])}",
-                  file=auc_out)
-            if auc_dict[prd] < min_auc:
-                continue
-            prd_used.append(prd)
-            fpr, tpr, _ = roc_curve(yx_dict[prd]['yy'], yx_dict[prd]['sc'])
-            ls = 'solid'
-            lbl = f"{prd} ({auc_dict[prd]:1.3f})"
-            cc += 1
-            clr = lf_dict[prd]['color']
-            ls = lf_dict[prd]['ls']
-            lw = lf_dict[prd]['lw']
-            plt.plot(fpr, tpr, lw=lw, label=lbl, color=clr, linestyle=ls)  # colors_list[cc]
+        for formated in [True, False]:
+            for prd in auc_dict:
+                if lf_dict[prd]['formated'] != formated:
+                    continue
+                print(f"{prd}\t{auc_dict[prd]:1.4f}\t{len(yx_dict[prd]['miss_ac'])}\t{len(yx_dict[prd]['yy'])}",
+                      file=auc_out)
+                if auc_dict[prd] < min_auc:
+                    continue
+                plotted_list.append(prd)
+                fpr, tpr, _ = roc_curve(yx_dict[prd]['yy'], yx_dict[prd]['sc'])
+                if not lf_dict[prd]['formated']:
+                    lbl = gray_lbl
+                    gray_lbl = None
+                else:
+                    lbl = f"{prd} ({auc_dict[prd]:1.3f})"
+                clr = lf_dict[prd]['color']
+                ls = lf_dict[prd]['ls']
+                lw = lf_dict[prd]['lw']
+
+                plt.plot(fpr, tpr, lw=lw, label=lbl, color=clr, linestyle=ls)
 
         plt.plot([0, 1], [0, 1], color="navy", lw=1, linestyle="--", label=f"Naive (0.500)")
-        plt.legend(loc="lower right", fontsize=15)
+        plt.legend(loc="lower right", fontsize=legend_font_size)
         plt.title(title)
         plt.xlabel("False Positive Rate")
         plt.ylabel("True Positive Rate")
-        if out_file is not None:
-            plt.savefig(out_file, dpi=300)
+        if figure_file is not None:
+            plt.savefig(figure_file, dpi=300)
         if display:
             plt.show()
-    return auc_dict, prd_used
+    return auc_dict, plotted_list
+
+
+def aff_precision_recall(af, tag, prd_list, title=None, min_recall=0.05, display=True, line_format_dict=None,
+                         figure_file=None, aps_file=None, legend_font_size=12, plotted_list=None):
+    line_format_dict = _fill_line_format_dict(prd_list, line_format_dict)
+    if title is None:
+        title = tag
+    yx_dict = _get_yx_dict(af, tag)
+    max_precision = 0.0
+    prd = prd_list[0]
+    h_line = sum(yx_dict[prd]['yy']) / len(yx_dict[prd]['yy'])
+    print(f"-----\t{h_line:1.4}")
+    plt.rcParams.update({'font.size': 18})
+    plt.rcParams['figure.figsize'] = [9.5, 9]
+    plt.title(f"{title}", fontsize=18)
+
+    for prd in prd_list:
+        clr = line_format_dict[prd]['color']
+        ls = line_format_dict[prd]['ls']
+        lw = line_format_dict[prd]['lw']
+        precision, recall, thresholds = precision_recall_curve(yx_dict[prd]['yy'], yx_dict[prd]['sc'])
+        aps = average_precision_score(yx_dict[prd]['yy'], yx_dict[prd]['sc'])
+        pre_rec = {'precision': precision, 'recall': recall}
+        lbl = f"{prd} ({aps:1.3f})"
+        print(f"{prd}:\t{aps:0.4}")
+        j0 = 0
+        for j in range(len(pre_rec['recall'])):
+            if max_precision < pre_rec['precision'][j]:
+                max_precision = pre_rec['precision'][j]
+            if pre_rec['recall'][j] < min_recall:
+                j0 = j - 1
+                break
+
+        if (j0 + 1) < len(pre_rec['recall']):
+            pre_rec['precision'][j0] = pre_rec['precision'][j0-1]
+            pre_rec['recall'][j0] = min_recall
+            j0 += 1
+        pre_rec['precision'][0] = h_line
+        pre_rec['recall'][0] = 0.999
+        clr = None
+        plt.plot(pre_rec['recall'][:j0], pre_rec['precision'][:j0], color=clr, lw=lw, linestyle=ls,
+                 label=lbl)
+    plt.plot([0, 1], [h_line, h_line], color="navy", lw=1, linestyle="--", label=f"Priors ({h_line:.3})")
+    plt.ylim((0, max_precision + 0.05))
+    plt.xlim((0, 1.0))
+    plt.legend(loc="upper right", fontsize=legend_font_size)
+    plt.ylabel("Precision", fontsize=16)
+    plt.xlabel("Recall", fontsize=16)
+    if figure_file is not None:
+        plt.savefig(figure_file, dpi=300)
+    if display:
+        plt.show()
 
 
 def aff_success(af, tag, prd_list):
@@ -196,66 +257,3 @@ def aff_success(af, tag, prd_list):
     # return pre_rec
 
 
-def aff_precision_recall_figure(prd_use, af, tag, title=None, min_recall=0.05, display=True, line_format_dict=None,
-                                lf_size = 12, out_file=None):
-    line_format_dict = _fill_line_format_dict(prd_use, line_format_dict)
-    if title is None:
-        title = tag
-    yx_dict = _get_yx_dict(af, tag)
-
-    max_precision = 0.0
-    prd = prd_use[0]
-    h_line = sum(yx_dict[prd]['yy']) / len(yx_dict[prd]['yy'])
-    print(f"-----\t{h_line:1.4}")
-    plt.rcParams.update({'font.size': 18})
-    plt.rcParams['figure.figsize'] = [9.5, 9]
-    plt.title(f"{title}", fontsize=18)
-    gray_lbl = 'General Protein Binding Tools'
-
-    for prd in prd_use:
-        clr = line_format_dict[prd]['color']
-        ls = line_format_dict[prd]['ls']
-        lw = line_format_dict[prd]['lw']
-        precision, recall, thresholds = precision_recall_curve(yx_dict[prd]['yy'], yx_dict[prd]['sc'])
-        aps = average_precision_score(yx_dict[prd]['yy'], yx_dict[prd]['sc'])
-        pre_rec = {'precision': precision, 'recall': recall}
-        lbl = f"{prd} ({aps:1.3f})"
-        print(f"{prd}:\t{aps:0.4}")
-        j0 = 0
-        for j in range(len(pre_rec['recall'])):
-            if max_precision < pre_rec['precision'][j]:
-                max_precision = pre_rec['precision'][j]
-            if pre_rec['recall'][j] < min_recall:
-                j0 = j - 1
-                break
-
-        if (j0 + 1) < len(pre_rec['recall']):
-            pre_rec['precision'][j0] = pre_rec['precision'][j0-1]
-            pre_rec['recall'][j0] = min_recall
-            j0 += 1
-        pre_rec['precision'][0] = h_line
-        pre_rec['recall'][0] = 0.999
-        clr = None
-        # if line_format_dict is not None:
-        #     if prd in line_format_dict:
-        #         clr = line_format_dict[prd]['color']
-        #         ls = line_format_dict[prd]['line']
-        # else:
-        #     clr = None
-        # if clr == 'gray':
-        plt.plot(pre_rec['recall'][:j0], pre_rec['precision'][:j0], color=clr, lw=lw, linestyle=ls,
-                 label=lbl)
-        # gray_lbl = None
-        # else:
-        #     lbl = f'{prd} ({aps:.3})'
-        #     plt.plot(pre_rec['recall'][:j0], pre_rec['precision'][:j0], linestyle=ls, lw=2, label=lbl)
-    plt.plot([0, 1], [h_line, h_line], color="navy", lw=1, linestyle="--", label=f"Priors ({h_line:.3})")
-    plt.ylim((0, max_precision + 0.05))
-    plt.xlim((0, 1.0))
-    plt.legend(loc="upper right", fontsize=lf_size)
-    plt.ylabel("Precision", fontsize=16)
-    plt.xlabel("Recall", fontsize=16)
-    if out_file is not None:
-        plt.savefig(out_file, dpi=300)
-    if display:
-        plt.show()
