@@ -42,21 +42,22 @@ def _get_yx_dict(af, tag):
 
 def _fill_line_format_dict(prd_list, line_format_dict):
     lf_dict = {}
-    if line_format_dict:
+    if line_format_dict is None:
+        line_format_dict = {}
+    if len(line_format_dict) == 0:
+        for prd in prd_list:
+            lf_dict[prd] = {'weight': None, 'style': None, 'color': None, 'formated': True}
+    else:
         for prd in prd_list:
             if prd not in line_format_dict:
-                lf_dict[prd] = {'lw': 1, 'ls': 'solid', 'color': 'gray', 'formated': False}
+                lf_dict[prd] = {'weight': 1, 'style': 'solid', 'color': 'gray', 'formated': False}
                 continue
             lf_dict[prd] = {'formated': True}
-            for ff in ['lw', 'ls', 'color']:
+            for ff in ['weight', 'style', 'color']:
                 if ff in line_format_dict[prd]:
                     lf_dict[prd][ff] = line_format_dict[prd][ff]
                 else:
                     lf_dict[prd][ff] = None
-    else:
-        for prd in prd_list:
-            if prd not in lf_dict:
-                lf_dict[prd] = {'lw': None, 'ls': None, 'color': None, 'formated': False}
     return lf_dict
 
 
@@ -71,12 +72,12 @@ def _filter_for_success(af, tag, cut=5):
 
 
 def aff_roc(af, tag, prd_list, title=None, min_auc=0.5, display=True, line_format_dict=None,
-            figure_file=None, auc_file=None, legend_font_size=12, sort_auc=True):  #
+            figure_file=None, auc_file=None, legend_font_size=12, gray_label='Others', sort_auc=True):  #
     if title is None:
         title = tag
     plotted_list = []
-    lf_dict = _fill_line_format_dict(prd_list=prd_list, line_format_dict=line_format_dict)
 
+    lf_dict = _fill_line_format_dict(prd_list=prd_list, line_format_dict=line_format_dict)
     auc_out = None
     yx_dict = _get_yx_dict(af, tag)
     auc_dict = {}
@@ -91,7 +92,6 @@ def aff_roc(af, tag, prd_list, title=None, min_auc=0.5, display=True, line_forma
         if auc_file:
             auc_out = open(auc_file, 'w')
         print("Predictor\tAUC\tmissing_seq\ttotal_AAs", file=auc_out)
-        gray_lbl = 'General Protein Binding Tools'
         for formated in [True, False]:
             for prd in auc_dict:
                 if lf_dict[prd]['formated'] != formated:
@@ -103,13 +103,13 @@ def aff_roc(af, tag, prd_list, title=None, min_auc=0.5, display=True, line_forma
                 plotted_list.append(prd)
                 fpr, tpr, _ = roc_curve(yx_dict[prd]['yy'], yx_dict[prd]['sc'])
                 if not lf_dict[prd]['formated']:
-                    lbl = gray_lbl
-                    gray_lbl = None
+                    lbl = gray_label
+                    gray_label = None
                 else:
                     lbl = f"{prd} ({auc_dict[prd]:1.3f})"
                 clr = lf_dict[prd]['color']
-                ls = lf_dict[prd]['ls']
-                lw = lf_dict[prd]['lw']
+                ls = lf_dict[prd]['style']
+                lw = lf_dict[prd]['weight']
 
                 plt.plot(fpr, tpr, lw=lw, label=lbl, color=clr, linestyle=ls)
 
@@ -126,64 +126,68 @@ def aff_roc(af, tag, prd_list, title=None, min_auc=0.5, display=True, line_forma
 
 
 def aff_precision_recall(af, tag, prd_list, title=None, min_recall=0.05, display=True, line_format_dict=None,
-                         figure_file=None, aps_file=None, legend_font_size=12, plotted_list=None):
+                         figure_file=None, aps_file=None, legend_font_size=12, gray_label='Others', plotted_list=None):
     if title is None:
         title = tag
     lf_dict = _fill_line_format_dict(prd_list, line_format_dict)
-    aps_out = None
     yx_dict = _get_yx_dict(af, tag)
     aps_dict = {}
     plt.rcParams.update({'font.size': 18})
     plt.rcParams['figure.figsize'] = [10, 9]
+    aps_out = None
+    if aps_file:
+        aps_out = open(aps_file, 'w')
+    print("Predictor\tAPS", file=aps_out)
     for prd in prd_list:
         aps_dict[prd] = average_precision_score(yx_dict[prd]['yy'], yx_dict[prd]['sc'])
+        print(f"{prd}\t{aps_dict[prd]:1.3}", file=aps_out)
 
     max_precision = 0.0
     data_priors = sum(yx_dict[prd_list[0]]['yy']) / len(yx_dict[prd_list[0]]['yy'])
-    gray_lbl = 'General Protein Binding Tools'
-    for formated in [True, False]:
-        for prd in plotted_list:
-            if lf_dict[prd]['formated'] != formated:
-                continue
-            precision, recall, thresholds = precision_recall_curve(yx_dict[prd]['yy'], yx_dict[prd]['sc'])
-            if prd in line_format_dict:
+    if display or figure_file is not None:
+        for formated in [True, False]:
+            for prd in plotted_list:
+                if lf_dict[prd]['formated'] != formated:
+                    continue
+                precision, recall, thresholds = precision_recall_curve(yx_dict[prd]['yy'], yx_dict[prd]['sc'])
+                # if prd in line_format_dict:
                 clr = lf_dict[prd]['color']
-                ls = lf_dict[prd]['ls']
-                lw = lf_dict[prd]['lw']
-                lbl = f"{prd} ({aps_dict[prd]:1.3f})"
-            else:
-                clr = 'gray'
-                ls = 'solid'
-                lw = 1
-                lbl = gray_lbl
-                gray_lbl = None
-            j0 = 0
-            for j in range(len(recall)):
-                if max_precision < precision[j]:
-                    max_precision = precision[j]
-                if recall[j] < min_recall:
-                    j0 = j - 1
-                    break
+                ls = lf_dict[prd]['style']
+                lw = lf_dict[prd]['weight']
+                if not lf_dict[prd]['formated']:
+                    lbl = gray_label
+                    gray_label = None
+                else:
+                    lbl = f"{prd} ({aps_dict[prd]:1.3f})"
 
-            if (j0 + 1) < len(recall):
-                precision[j0] = precision[j0-1]
-                recall[j0] = min_recall
-                j0 += 1
-            precision[0] = data_priors
-            recall[0] = 0.999
-            plt.plot(recall[:j0], precision[:j0], color=clr, lw=lw, linestyle=ls, label=lbl)
-    plt.plot([0, 1], [data_priors, data_priors], color="navy", lw=1, linestyle="--",
-             label=f"Priors ({data_priors:.3})")
-    plt.ylim((0, max_precision + 0.05))
-    plt.xlim((0, 1.0))
-    plt.legend(loc="upper right", fontsize=legend_font_size)
-    plt.ylabel("Precision", fontsize=16)
-    plt.xlabel("Recall", fontsize=16)
-    plt.title(f"{title}", fontsize=18)
-    if figure_file is not None:
-        plt.savefig(figure_file, dpi=300)
-    if display:
-        plt.show()
+                j0 = 0
+                for j in range(len(recall)):
+                    if max_precision < precision[j]:
+                        max_precision = precision[j]
+                    if recall[j] < min_recall:
+                        j0 = j - 1
+                        break
+
+                if (j0 + 1) < len(recall):
+                    precision[j0] = precision[j0-1]
+                    recall[j0] = min_recall
+                    j0 += 1
+                precision[0] = data_priors
+                recall[0] = 0.999
+                plt.plot(recall[:j0], precision[:j0], color=clr, lw=lw, linestyle=ls, label=lbl)
+        plt.plot([0, 1], [data_priors, data_priors], color="navy", lw=1, linestyle="--",
+                 label=f"Priors ({data_priors:.3})")
+        plt.ylim((0, max_precision + 0.05))
+        plt.xlim((0, 1.0))
+        plt.legend(loc="upper right", fontsize=legend_font_size)
+        plt.ylabel("Precision", fontsize=16)
+        plt.xlabel("Recall", fontsize=16)
+        plt.title(f"{title}", fontsize=18)
+        if figure_file is not None:
+            plt.savefig(figure_file, dpi=300)
+        if display:
+            plt.show()
+    return aps_dict
 
 
 def aff_success(af, tag, prd_list):
@@ -205,64 +209,4 @@ def aff_success(af, tag, prd_list):
         succ_dict[prd] = float(succ_cnt) / len(caf['data'])
 
     return succ_dict
-
-
-# def get_high(af, tag):
-#     if tag != 'N_bind':
-#         return
-#     n_max = 0.6
-#     for ac in af['data']:
-#         sz = len(af['data'][ac]['seq'])
-#         for ii in range(sz):
-#             if af['data'][ac]['IPA_nucleic'][ii] > n_max and af['data'][ac]['N_bind'][ii] == '1':
-#                 n_max = af['data'][ac]['IPA_nucleic'][ii]
-#     print(f"n_max:\t{n_max}")  # 0.87638
-#     prot_nucleotide = {}
-#     for ac in af['data']:
-#         sz = len(af['data'][ac]['seq'])
-#         for ii in range(sz):
-#             if af['data'][ac]['IPA_nucleic'][ii] > n_max and af['data'][ac]['N_bind'][ii] == '0':
-#                 if ac not in prot_nucleotide:
-#                     prot_nucleotide[ac] = 0
-#                 prot_nucleotide[ac] += 1
-#                 print(ac, af['data'][ac]['seq'][ii], ii, af['data'][ac]['IPA_nucleic'][ii], af['data'][ac]['N_bind'][ii])
-#
-#     for ac in prot_nucleotide:
-#         print(ac, prot_nucleotide[ac])
-
-
-# def aff_get_aps(yy, sc):
-#     lst = []
-#     precision = np.zeros(len(yy), dtype='float32')
-#     for y, s in zip(yy, sc):
-#         lst.append({'Y': y, 'S': s})
-#         # print(s)
-#     # exit(0)
-#     lst_sorted = sorted(lst, key=lambda x: x['S'], reverse=True)
-#     accumulated = lst_sorted[0]['Y']
-#     precision[0] = accumulated
-#     for ii in range(1, len(yy)):
-#         accumulated = accumulated + lst_sorted[ii]['Y']
-#         precision[ii] = accumulated / (ii + 1)
-#     return np.average(precision)
-
-# def aff_precision_recall(y, sc, steps=400):
-    # pre_rec = {'precision': np.zeros(steps+1, dtype='float32'), 'recall': np.zeros(steps+1, dtype='float32')}
-    # mn = np.amin(sc)
-    # mx = np.amax(sc)
-    # cut_list = [mn]
-    # st = (mx - mn) / (steps-1)
-    # for i in range(steps):
-    #     cut_list.append(cut_list[i] + st)
-    # for i, cut in enumerate(cut_list):
-    #     yh = (sc > cut) * 1
-    #     tn, fp, fn, tp = confusion_matrix(y, yh).ravel()
-    #     if (tp + fp) > 0:
-    #         pre_rec['precision'][i] = tp / (tp + fp)
-    #     if (tp + fn) > 0:
-    #         pre_rec['recall'][i] = tp / (tp + fn)
-    # precision, recall, thresholds = precision_recall_curve(y, sc)
-    # pre_rec = {'precision': precision, 'recall': recall}
-    # return pre_rec
-
 
