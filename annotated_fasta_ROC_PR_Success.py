@@ -128,6 +128,8 @@ def aff_precision_recall(af, tag, prd_list, title=None, min_recall=0.05, display
                          figure_file=None, aps_file=None, legend_font_size=12, gray_label='Others', plotted_list=None):
     if title is None:
         title = tag
+    if plotted_list is None:
+        plotted_list = prd_list
     lf_dict = _fill_line_format_dict(prd_list, line_format_dict)
     yx_dict = _get_yx_dict(af, tag)
     aps_dict = {}
@@ -179,9 +181,9 @@ def aff_precision_recall(af, tag, prd_list, title=None, min_recall=0.05, display
         plt.ylim((0, max_precision + 0.05))
         plt.xlim((0, 1.0))
         plt.legend(loc="upper right", fontsize=legend_font_size)
-        plt.ylabel("Precision", fontsize=16)
-        plt.xlabel("Recall", fontsize=16)
-        plt.title(f"{title}", fontsize=18)
+        plt.ylabel("Precision")
+        plt.xlabel("Recall")
+        plt.title(f"{title}")
         if figure_file is not None:
             plt.savefig(figure_file, dpi=300)
         if display:
