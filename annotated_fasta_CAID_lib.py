@@ -32,7 +32,7 @@ def aff_load_prd_merged_caid_scores(af, sc_caid_file, prd):
                 del af['data'][ac]['scores'][prd]
 
 
-def load_protein_caid_scores_one(in_file):
+def aff_load_protein_caid_scores_one(in_file):
     sc_list = []
     with open(in_file, 'r') as fin:
         for line in fin:
@@ -66,7 +66,7 @@ def aff_load_caid_scores(af, scores_path, prd_list, merged=True, remove_missing_
                     continue
                 if 'scores' not in af['data'][ac]:
                     af['data'][ac]['scores'] = {}
-                af['data'][ac]['scores'][prd] = load_protein_caid_scores_one(in_file=f'{_p}{ac}.caid')
+                af['data'][ac]['scores'][prd] = aff_load_protein_caid_scores_one(in_file=f'{_p}{ac}.caid')
 
     used_prd_set = set()
     ac_list = list(af['data'].keys())
