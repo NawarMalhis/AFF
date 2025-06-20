@@ -1,7 +1,7 @@
 import copy
 
 
-def annotated_fasta(tags=None, name_tags=None):
+def annotated_fasta(tags: list = None, name_tags: list = None):
     if tags is None:
         tags = []
     if name_tags is None:
@@ -9,7 +9,7 @@ def annotated_fasta(tags=None, name_tags=None):
     return {'data': {}, 'metadata': {'tags': tags, 'name_tags': name_tags, 'statistics': None}}
 
 
-def aff_load(in_file: str, tag=None):  # , _mark=None
+def aff_load(in_file: str, tag: str = None):  # , _mark=None
     af_sequences = {}
     tags = []
     name_tags = []
@@ -39,67 +39,78 @@ def aff_load(in_file: str, tag=None):  # , _mark=None
                 af_sequences[ac] = {'seq': '', 'scores': {}}
                 for extra in ac_lst[1:]:
                     ex_lst = extra.split('=')
-                    if len(ex_lst) < 2:
+                    if len(ex_lst) != 2:
                         continue
                     af_sequences[ac][ex_lst[0]] = ex_lst[1]
                     if ex_lst[0] not in name_tags:
                         name_tags.append(ex_lst[0])
-                #     if len(ac_lst) == 2:
-                #         ox_lst = ac_lst[1].split('=')
-                #         if len(ox_lst) > 1:
-                #             if ox_lst[0] == 'OX':
-                #                 ox = ox_lst[1]
-                # af_sequences[ac] = {'mark': _mark, 'OX': ox}
                 continue
             af_sz = len(af_sequences[ac])
             if af_sequences[ac]['seq'] == '':
                 af_sequences[ac]['seq'] = line
-                tg_i0 = af_sz  # len(af_sequences[ac])
+                tg_i0 = af_sz
             else:
                 af_sequences[ac][tags[af_sz - tg_i0]] = line.replace('x', '-')
             continue
     af = {'data': af_sequences, 'metadata': {'tags': tags, 'name_tags': name_tags, 'statistics': None}}
+    for ac in af['data']:
+        for n_tg in af['metadata']['name_tags']:
+            if n_tg not in af['data'][ac]:
+                af['data'][ac][n_tg] = ''
     return af
 
 
 def aff_gen_statistics(af):
-    # counts = {'seq': 0, 'seg': 0}
-    if len(af['data']) == 0:
-        af['metadata']['statistics'] = None
-        return
-    af['metadata']['statistics'] = {}
+    af['metadata']['statistics'] = {'tags': {}, 'name_tags': {}}
     for tg in af['metadata']['tags']:
-        af['metadata']['statistics'][tg] = {}
-        af['metadata']['statistics'][tg]['seq'] = 0
-        af['metadata']['statistics'][tg]['seg'] = 0
+        af['metadata']['statistics']['tags'][tg] = {}
+        af['metadata']['statistics']['tags'][tg]['seq'] = 0
+        af['metadata']['statistics']['tags'][tg]['seg'] = 0
         for ac in af['data']:
             mask = str(af['data'][ac][tg])
             mask = mask.replace('-', '0')
             cnt = len([xx for xx in mask.split('0') if xx])
             if cnt > 0:
-                af['metadata']['statistics'][tg]['seq'] += 1
-                af['metadata']['statistics'][tg]['seg'] += cnt
+                af['metadata']['statistics']['tags'][tg]['seq'] += 1
+                af['metadata']['statistics']['tags'][tg]['seg'] += cnt
         for cc in ['0', '1', '-']:
-            af['metadata']['statistics'][tg][cc] = 0
+            af['metadata']['statistics']['tags'][tg][cc] = 0
             for ac in af['data']:
-                for i in range(len(af['data'][ac][tg])):
-                    if af['data'][ac][tg][i] == cc:
-                        af['metadata']['statistics'][tg][cc] += 1
+                af['metadata']['statistics']['tags'][tg][cc] += af['data'][ac][tg].count(cc)
+
+    n_tags_set_dict = {}
+    for n_tg in af['metadata']['name_tags']:
+        af['metadata']['statistics']['name_tags'][n_tg] = {'total': 0, 'unique': 0}
+        n_tags_set_dict[n_tg] = set()
+    for ac in af['data']:
+        for n_tg in af['metadata']['name_tags']:
+            if n_tg in af['data'][ac]:
+                if len(af['data'][ac][n_tg]) > 0:
+                    af['metadata']['statistics']['name_tags'][n_tg]['total'] += 1
+                    n_tags_set_dict[n_tg].add(af['data'][ac][n_tg])
+    for n_tg in af['metadata']['name_tags']:
+        af['metadata']['statistics']['name_tags'][n_tg]['unique'] = len(n_tags_set_dict[n_tg])
+    print(af['metadata']['statistics'], flush=True)
 
 
 def aff_get_string_stat(af):
-    if not af['metadata']['statistics']:
-        aff_gen_statistics(af)
-    _msg = "# Statistics:\n#\t---\ttag\tSeq#\tSeg#\t'0'\t'1'\t'-'"
+    aff_gen_statistics(af)
+    _msg = ''
+    if len(af['metadata']['name_tags']) > 0:
+        _msg = _msg + "# IDs info:\n#\t------\tID \tAll#\tUnique#"
+        for n_tg in af['metadata']['name_tags']:
+            _msg = _msg + f"\n#\tseq_ID\t{n_tg}\t{af['metadata']['statistics']['name_tags'][n_tg]['total']:,}"
+            _msg = _msg + f"\t{af['metadata']['statistics']['name_tags'][n_tg]['unique']:,}"
+        _msg = _msg + "\n#\n"
+    _msg = _msg + "# Tags info:\n#\t---\ttag\tSeq#\tSeg#\t'0'\t'1'\t'-'"
     for tg in af['metadata']['tags']:
         _msg = _msg + f"\n#\tTAG\t{tg}"
-        # print(af['metadata']['statistics'].keys(), flush=True)
-        for cc in af['metadata']['statistics'][tg]:
-            _msg = _msg + f"\t{af['metadata']['statistics'][tg][cc]:,}"
+        for cc in af['metadata']['statistics']['tags'][tg]:
+            _msg = _msg + f"\t{af['metadata']['statistics']['tags'][tg][cc]:,}"
     return _msg
 
 
-def aff_save_fasta(af, f_name):
+def aff_save_fasta(af, f_name: str):
     with open(f_name, 'w') as fout:
         for ac in af['data']:
             ac_o = ac
@@ -109,7 +120,8 @@ def aff_save_fasta(af, f_name):
             print(f">{ac_o}\n{af['data'][ac]['seq']}", file=fout)
 
 
-def aff_save(af, f_name, data_name=None, header_top=None, header_bottom=None):
+# needs (save ID) validation
+def aff_save(af, f_name: str, data_name: str =None, header_top: str =None, header_bottom: str =None):
     with open(f_name, 'w') as fout:
         if data_name:
             print(f"# dataset: {data_name}\n#", file=fout)
@@ -132,18 +144,19 @@ def aff_save(af, f_name, data_name=None, header_top=None, header_bottom=None):
             ac_o = ac
             for tg in af['data'][ac]:
                 if tg in af['metadata']['name_tags']:
-                    ac_o = f"{ac_o}|{tg}="
-                    for nm in af['data'][ac][tg]:
-                        if ac_o[-1] != '=':
-                            ac_o = f"{ac_o};"
-                        ac_o = f"{ac_o}{nm}"
+                    ac_o = f"{ac_o}|{tg}={af['data'][ac][tg]}"
+                    # for nm in af['data'][ac][tg]:
+                    #     if ac_o[-1] != '=':
+                    #         ac_o = f"{ac_o};"
+                    #     ac_o = f"{ac_o}{nm}"
             print(f">{ac_o}\n{af['data'][ac]['seq']}", file=fout)
             for tg in af['metadata']['tags']:
                 print(f"{af['data'][ac][tg]}", file=fout)
     return
 
 
-def aff_remove_tags_list(af, tags_list_out):
+# needs validation
+def aff_remove_tags_list(af, tags_list_out: list):
     tag_list = []
     for tg in af['metadata']['tags']:
         if tg not in tags_list_out:
@@ -155,14 +168,17 @@ def aff_remove_tags_list(af, tags_list_out):
     af['metadata']['tags'] = tag_list
 
 
-def aff_rename_tag(af, old_tag, new_tag):
+def aff_rename_tag(af, old_tag: str, new_tag: str):
+    tag_used = False
     for ii in range(len(af['metadata']['tags'])):
         if af['metadata']['tags'][ii] == old_tag:
             af['metadata']['tags'][ii] = new_tag
+            tag_used = True
             break
-    for ac in af['data']:
-        af['data'][ac][new_tag] = af['data'][ac][old_tag]  # copy.deepcopy
-        del af['data'][ac][old_tag]
+    if tag_used:
+        for ac in af['data']:
+            af['data'][ac][new_tag] = af['data'][ac][old_tag]
+            del af['data'][ac][old_tag]
 
 
 def aff_merge_simple(af_to, af_from):
@@ -229,7 +245,7 @@ def aff_remove_missing_scores(af):
                 break
 
 
-def aff_remove_no_1_tag(af, tag):
+def aff_remove_no_1_tag(af, tag: str):
     if tag not in af['metadata']['tags']:
         return
     ac_list = list(af['data'].keys())
@@ -239,7 +255,7 @@ def aff_remove_no_1_tag(af, tag):
             del af['data'][ac]
 
 
-def aff_remove_no_info_tag(af, tag):
+def aff_remove_no_info_tag(af, tag: str):
     if tag not in af['metadata']['tags']:
         return
     ac_list = list(af['data'].keys())
@@ -260,7 +276,7 @@ def aff_remove_no_1_all(af):
             del af['data'][ac]
 
 
-def aff_load_fasta(in_file):
+def aff_load_fasta(in_file: str):
     af = annotated_fasta()
     with open(in_file, 'r') as fin:
         ac = ''
@@ -278,7 +294,7 @@ def aff_load_fasta(in_file):
     return af
 
 
-def aff_merge_annotations(ann1, ann2):
+def aff_merge_annotations(ann1: str, ann2: str):
     if len(ann1) != len(ann2):
         return None
     sz = len(ann1)
@@ -293,8 +309,10 @@ def aff_merge_annotations(ann1, ann2):
     return ''.join(lst)
 
 
-def aff_add_tag(af, tag):
+def aff_add_tag(af, tag: str):
     if tag not in af['metadata']['tags']:
         af['metadata']['tags'].append(tag)
+        for ac in af['data']:
+            af['data'][ac][tag] = '-' * len(af['data'][ac]['seq'])
     else:
         print(f"{tag} exist in af")
