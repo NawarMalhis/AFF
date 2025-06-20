@@ -90,7 +90,6 @@ def aff_gen_statistics(af):
                     n_tags_set_dict[n_tg].add(af['data'][ac][n_tg])
     for n_tg in af['metadata']['name_tags']:
         af['metadata']['statistics']['name_tags'][n_tg]['unique'] = len(n_tags_set_dict[n_tg])
-    print(af['metadata']['statistics'], flush=True)
 
 
 def aff_get_string_stat(af):
