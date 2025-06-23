@@ -1,12 +1,10 @@
 import copy
 
 
-def annotated_fasta(tags: list = None, name_tags: list = None):
+def annotated_fasta(tags: list = None):
     if tags is None:
         tags = []
-    if name_tags is None:
-        name_tags = []
-    return {'data': {}, 'metadata': {'tags': tags, 'name_tags': name_tags, 'counts': None}}
+    return {'data': {}, 'metadata': {'tags': tags, 'names_dict': {}, 'counts': None}}
 
 
 def aff_load2(in_file: str):  # , _mark=None
@@ -14,7 +12,7 @@ def aff_load2(in_file: str):  # , _mark=None
     af_sequences = {}
     tags_dict = {}
     tags_list = []
-    name_tags = []
+    names_dict = []
     _more_tags = False
     _id_counts = False
     accession = ''
@@ -22,7 +20,6 @@ def aff_load2(in_file: str):  # , _mark=None
         ac = ''
         for line in fin:
             line = line.strip()
-            # print(line, flush=True)
             if len(line) == 0:
                 continue
             if line[0] == '#':
@@ -31,8 +28,6 @@ def aff_load2(in_file: str):  # , _mark=None
                     continue
                 if _more_tags:
                     _lst = line.split('\t')
-                    # print(line, flush=True)
-                    # print(_lst, flush=True)
                     if len(_lst) > 1:
                         if _lst[1] == 'TAG':
                             if len(_lst) > 2:
@@ -41,24 +36,22 @@ def aff_load2(in_file: str):  # , _mark=None
                                 info = 'Annotation'
                             tags_dict[_lst[2]] = info
                             tags_list.append(_lst[2])
-                    if 'Counts:' in line:
+                    if 'IDs Counts:' in line:
                         _more_tags = False
-                        if 'ID Counts:' in line:
-                            _id_counts = True
-                        continue
+                        _id_counts = True
+                    continue
                 if _id_counts:
+                    _lst = line.split()
                     if 'Unique#' in line:
                         continue
                     if 'Tags Counts:' in line:
                         _id_counts = False
                         continue
-                    _lst = line.split()
                     if len(_lst) < 4:
                         continue
                     if len(_lst) == 5:
                         accession = _lst[1]
-                    name_tags.append(_lst[1])
-                    continue
+                    names_dict.append(_lst[1])
                 continue
             if len(tags_dict) == 0:
                 print(f"Error: No tags are found in {in_file}")
@@ -68,14 +61,13 @@ def aff_load2(in_file: str):  # , _mark=None
                 ac_lst = line[1:].split('|')
                 ac = ac_lst[0]
                 af_sequences[ac] = {'seq': '', 'scores': {}}
-                af_sequences[ac][accession] = ac
                 for extra in ac_lst[1:]:
                     ex_lst = extra.split('=')
                     if len(ex_lst) != 2:
                         continue
                     af_sequences[ac][ex_lst[0]] = ex_lst[1]
-                    if ex_lst[0] not in name_tags:
-                        name_tags.append(ex_lst[0])
+                    if ex_lst[0] not in names_dict:
+                        names_dict.append(ex_lst[0])
                 continue
             af_sz = len(af_sequences[ac])
             if af_sequences[ac]['seq'] == '':
@@ -84,13 +76,12 @@ def aff_load2(in_file: str):  # , _mark=None
             else:
                 af_sequences[ac][tags_list[af_sz - tg_i0]] = line.replace('x', '-')
             continue
-    af = {'data': af_sequences, 'metadata': {'tags': tags_dict, 'name_tags': name_tags, 'counts': None,
+    af = {'data': af_sequences, 'metadata': {'tags': tags_dict, 'names_dict': names_dict, 'counts': None,
                                              'accession': accession}}
     for ac in af['data']:
-        for n_tg in af['metadata']['name_tags']:
+        for n_tg in af['metadata']['names_dict']:
             if n_tg not in af['data'][ac]:
                 af['data'][ac][n_tg] = ''
-    print(af['metadata'])
     return af
 
 
@@ -104,14 +95,16 @@ def aff_save2(af, f_name: str, data_name: str =None, header_top: str =None, head
         print("#", file=fout)
         print("# Format:", file=fout)
         print("#\t>accession", file=fout, end='')
-        for n_tg in af['metadata']['name_tags']:
+        for n_tg in af['metadata']['names_dict']:
             print(f"|{n_tg}={n_tg}_ID", file=fout, end='')
         print(file=fout)
         print("#\tAmino acid sequence", file=fout)
         for tg in af['metadata']['tags']:
             print(f"#\tTAG\t{tg}\t{af['metadata']['tags'][tg]}", file=fout)
         print("#", file=fout)
-        print(aff_get_string_counts(af), file=fout)
+        _gen_counts(af)
+        str_counts = _get_string_counts(af)
+        print(str_counts, file=fout)
         if header_bottom:
             print('#', file=fout)
             print(header_bottom, file=fout)
@@ -119,7 +112,7 @@ def aff_save2(af, f_name: str, data_name: str =None, header_top: str =None, head
         for ac in af['data']:
             ac_o = ac
             for tg in af['data'][ac]:
-                if tg in af['metadata']['name_tags']:
+                if tg in af['metadata']['names_dict']:
                     ac_o = f"{ac_o}|{tg}={af['data'][ac][tg]}"
             print(f">{ac_o}\n{af['data'][ac]['seq']}", file=fout)
             for tg in af['metadata']['tags']:
@@ -178,12 +171,10 @@ def aff_load(in_file: str, tag: str = None):  # , _mark=None
     return af
 
 
-def aff_gen_counts(af):
-    af['metadata']['counts'] = {'tags': {}, 'name_tags': {}}
+def _gen_counts(af):
+    af['metadata']['counts'] = {'tags': {}, 'names_dict': {}}
     for tg in af['metadata']['tags']:
-        af['metadata']['counts']['tags'][tg] = {}
-        af['metadata']['counts']['tags'][tg]['seq'] = 0
-        af['metadata']['counts']['tags'][tg]['seg'] = 0
+        af['metadata']['counts']['tags'][tg] = {'seq': 0, 'seg': 0, '0': 0, '1': 0, '-': 0}
         for ac in af['data']:
             mask = str(af['data'][ac][tg])
             mask = mask.replace('-', '0')
@@ -191,33 +182,29 @@ def aff_gen_counts(af):
             if cnt > 0:
                 af['metadata']['counts']['tags'][tg]['seq'] += 1
                 af['metadata']['counts']['tags'][tg]['seg'] += cnt
-        for cc in ['0', '1', '-']:
-            af['metadata']['counts']['tags'][tg][cc] = 0
-            for ac in af['data']:
+            for cc in ['0', '1', '-']:
                 af['metadata']['counts']['tags'][tg][cc] += af['data'][ac][tg].count(cc)
 
     n_tags_set_dict = {}
-    for n_tg in af['metadata']['name_tags']:
-        af['metadata']['counts']['name_tags'][n_tg] = {'total': 0, 'unique': 0}
+    for n_tg in af['metadata']['names_dict']:
+        af['metadata']['counts']['names_dict'][n_tg] = {'total': 0, 'unique': 0}
         n_tags_set_dict[n_tg] = set()
-    for ac in af['data']:
-        for n_tg in af['metadata']['name_tags']:
+        for ac in af['data']:
             if n_tg in af['data'][ac]:
                 if len(af['data'][ac][n_tg]) > 0:
-                    af['metadata']['counts']['name_tags'][n_tg]['total'] += 1
+                    af['metadata']['counts']['names_dict'][n_tg]['total'] += 1
                     n_tags_set_dict[n_tg].add(af['data'][ac][n_tg])
-    for n_tg in af['metadata']['name_tags']:
-        af['metadata']['counts']['name_tags'][n_tg]['unique'] = len(n_tags_set_dict[n_tg])
+    for n_tg in af['metadata']['names_dict']:
+        af['metadata']['counts']['names_dict'][n_tg]['unique'] = len(n_tags_set_dict[n_tg])
 
 
-def aff_get_string_counts(af):
-    aff_gen_counts(af)
+def _get_string_counts(af):
     _msg = ''
-    if len(af['metadata']['name_tags']) > 0:
-        _msg = _msg + "# IDs Counts:\n#\tID \tAll#\tUnique#"
-        for n_tg in af['metadata']['name_tags']:
-            _msg = _msg + f"\n#\t{n_tg}\t{af['metadata']['counts']['name_tags'][n_tg]['total']:,}"
-            _msg = _msg + f"\t{af['metadata']['counts']['name_tags'][n_tg]['unique']:,}"
+    if len(af['metadata']['names_dict']) > 0:
+        _msg = _msg + f"# IDs Counts:\n#\tID \tAll#\tUnique#"
+        for n_tg in af['metadata']['names_dict']:
+            _msg = _msg + f"\n#\t{n_tg}\t{af['metadata']['counts']['names_dict'][n_tg]['total']:,}"
+            _msg = _msg + f"\t{af['metadata']['counts']['names_dict'][n_tg]['unique']:,}"
             if n_tg == af['metadata']['accession']:
                 _msg = _msg + "\tAC"
         _msg = _msg + "\n#\n"
@@ -254,7 +241,7 @@ def aff_save(af, f_name: str, data_name: str =None, header_top: str =None, heade
         for tg in af['metadata']['tags']:
             print(f"#\t{tg} annotation", file=fout)
         print("#", file=fout)
-        print(aff_get_string_counts(af), file=fout)
+        print(_get_string_counts(af), file=fout)
         if header_bottom:
             print('#', file=fout)
             print(header_bottom, file=fout)
@@ -262,7 +249,7 @@ def aff_save(af, f_name: str, data_name: str =None, header_top: str =None, heade
         for ac in af['data']:
             ac_o = ac
             for tg in af['data'][ac]:
-                if tg in af['metadata']['name_tags']:
+                if tg in af['metadata']['names_dict']:
                     ac_o = f"{ac_o}|{tg}={af['data'][ac][tg]}"
                     # for nm in af['data'][ac][tg]:
                     #     if ac_o[-1] != '=':
