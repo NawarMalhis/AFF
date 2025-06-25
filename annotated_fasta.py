@@ -1,9 +1,14 @@
 import copy
 
 
-def annotated_fasta(data_name: str='Data has no Name'):
-    return {'data': {}, 'metadata': {'tags_dict': {}, 'names_list': [], 'counts': None,
-                                     'accession': None, 'data_name': data_name}}
+def annotated_fasta(data_name: str='Data has no Name', names_list: list=None, accession: str=None):
+    if names_list is None:
+        names_list = []
+    if accession is not None:
+        if accession not in names_list:
+            names_list.append(accession)
+    return {'data': {}, 'metadata': {'tags_dict': {}, 'names_list': names_list, 'counts': None,
+                                     'accession': accession, 'data_name': data_name}}
 
 
 def aff_load2(in_file: str):  # , _mark=None
@@ -13,7 +18,7 @@ def aff_load2(in_file: str):  # , _mark=None
     names_list = []
     _more_tags = False
     _id_counts = False
-    accession = ''
+    accession = None
     data_name = 'Data has no name'
     with open(in_file, 'r') as fin:
         ac = ''
@@ -297,7 +302,7 @@ def _gen_name_counts(af):
         ntg_set_dict[ntg] = set()
         for ac in af['data']:
             if ntg in af['data'][ac]:
-                print(ac, af['data'][ac][ntg], flush=True)
+                # print(ac, af['data'][ac][ntg], flush=True)
                 if len(af['data'][ac][ntg]) > 0:
                     af['metadata']['counts']['names_dict'][ntg]['total'] += 1
                     ntg_set_dict[ntg].add(af['data'][ac][ntg])
