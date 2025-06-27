@@ -11,6 +11,65 @@ def annotated_fasta(data_name: str='Data has no Name', names_list: list=None, ac
                                      'accession': accession, 'data_name': data_name}}
 
 
+def aff_load0(in_file: str, name_data: str='Data has no Name', accession: str=None):  # , _mark=None
+    af_sequences = {}
+    tags = []
+    name_tags = []
+    _more_tags = True
+    with open(in_file, 'r') as fin:
+        ac = ''
+        for line in fin:
+            line = line.strip()
+            if len(line) == 0:
+                continue
+            if line[0] == '#':
+                if _more_tags:
+                    _lst = line.split()
+                    if len(_lst) > 1:
+                        if _lst[1] == 'TAG':
+                            tags.append(_lst[2])
+                continue
+            _more_tags = False
+
+            if line[0] == '>':
+                ac_lst = line[1:].split('|')
+                ac = ac_lst[0]
+                af_sequences[ac] = {'seq': '', 'scores': {}}
+                for extra in ac_lst[1:]:
+                    ex_lst = extra.split('=')
+                    if len(ex_lst) < 2:
+                        continue
+                    af_sequences[ac][ex_lst[0]] = ex_lst[1]
+                    if ex_lst[0] not in name_tags:
+                        name_tags.append(ex_lst[0])
+                continue
+            af_sz = len(af_sequences[ac])
+            if af_sequences[ac]['seq'] == '':
+                af_sequences[ac]['seq'] = line
+                tg_i0 = af_sz  # len(af_sequences[ac])
+            else:
+                af_sequences[ac][tags[af_sz - tg_i0]] = line.replace('x', '-')
+            continue
+    af0 = {'data': af_sequences, 'metadata': {'tags': tags, 'name_tags': name_tags, 'statistics': None}}
+    # -------------------------------------------------------------------------------------------------------
+    af = annotated_fasta()
+    for tg in af0['metadata']['tags']:
+        af['metadata']['tags_dict'][tg] = 'xxx'
+    if accession is None:
+        accession = 'Fasta_ID'
+    af['metadata']['names_list'].append(accession)
+    for ntg in af0['metadata']['name_tags']:
+        af['metadata']['names_list'].append(ntg)
+    for ac in af0['data']:
+        af['data'][ac] = af0['data'][ac]
+        af['data'][ac][accession] = ac
+    # print(len(af['data']), flush=True)
+    # for ac in af['data']:
+    #     print(ac, list(af['data'][ac].keys()))
+    _gen_name_counts(af)
+    return af
+
+
 def aff_load2(in_file: str):  # , _mark=None
     af_sequences = {}
     tags_dict = {}
@@ -29,19 +88,19 @@ def aff_load2(in_file: str):  # , _mark=None
             if line[0] == '#':
                 if 'Data Name:' in line:
                     data_name = line.split('\t')[1]
-                if 'Format:' in line:
+                if 'Amino acid sequence' in line:
                     _more_tags = True
                     continue
                 if _more_tags:
                     _lst = line.split('\t')
                     if len(_lst) > 1:
-                        if _lst[1] == 'TAG':
-                            if len(_lst) > 2:
-                                info = _lst[3]
-                            else:
-                                info = 'Annotation'
-                            tags_dict[_lst[2]] = info
-                            tags_list.append(_lst[2])
+                        # if _lst[1] == 'TAG':
+                        if len(_lst) > 1:
+                            info = _lst[2]
+                        else:
+                            info = 'Annotation'
+                        tags_dict[_lst[1]] = info
+                        tags_list.append(_lst[1])
                     if 'IDs Counts:' in line:
                         _more_tags = False
                         _id_counts = True
@@ -123,7 +182,7 @@ def aff_save2(af, f_name: str, header_top: str =None, header_bottom: str =None):
         print(file=fout)
         print("#\tAmino acid sequence", file=fout)
         for tg in af['metadata']['tags_dict']:
-            print(f"#\tTAG\t{tg}\t{af['metadata']['tags_dict'][tg]}", file=fout)
+            print(f"#\t{tg}\t{af['metadata']['tags_dict'][tg]}", file=fout)
         print("#", file=fout)
         _gen_counts(af)
         str_counts = _get_string_counts(af)
