@@ -70,7 +70,7 @@ def aff_load0(in_file: str, name_data: str='Data has no Name', accession: str=No
     return af
 
 
-def aff_load2(in_file: str):  # , _mark=None
+def aff_load2(in_file: str, data_name: str='Data has no name'):  # , _mark=None
     af_sequences = {}
     tags_dict = {}
     tags_list = []
@@ -78,7 +78,6 @@ def aff_load2(in_file: str):  # , _mark=None
     _more_tags = False
     _id_counts = False
     accession = None
-    data_name = 'Data has no name'
     with open(in_file, 'r') as fin:
         ac = ''
         for line in fin:
@@ -147,6 +146,55 @@ def aff_load2(in_file: str):  # , _mark=None
         for ntg in af['metadata']['names_list']:
             if ntg not in af['data'][ac]:
                 af['data'][ac][ntg] = ''
+    _gen_name_counts(af)
+    return af
+
+
+def aff_load_simple(in_file: str, data_name: str='Data has no name', tg: str= 'ANN', tag_description: str= 'Annotation'):
+    af_sequences = {}
+    tags_dict = {tg: tag_description}
+    names_list = ['Fasta']
+    _more_tags = False
+    _id_counts = False
+    accession = 'Fasta'
+    l_num = 0
+    with open(in_file, 'r') as fin:
+        ac = ''
+        for line in fin:
+            line = line.strip()
+            if len(line) == 0:
+                continue
+            if line[0] == '#':
+                continue
+            if line[0] == '>':
+                l_num = 1
+                hd_lst = line[1:].replace(':', '=').split('|')
+                ac = hd_lst[0]
+                af_sequences[ac] = {accession: ac}
+                for hdn in hd_lst:
+                    two_parts = hdn.split('=')
+                    if len(two_parts) == 2:
+                        af_sequences[ac][two_parts[0]] = two_parts[1]
+                        if two_parts[0] not in names_list:
+                            names_list.append(two_parts[0])
+                continue
+            if l_num == 1:
+                af_sequences[ac]['seq'] = line
+                l_num = 2
+                continue
+            if l_num == 2:
+                af_sequences[ac][tg] = line
+                l_num = 0
+                continue
+            # else:
+            #     print(f"ERROR\t{line}", flush=True)
+    af = {'data': af_sequences, 'metadata': {'tags_dict': tags_dict, 'names_list': names_list, 'counts': None,
+                                             'accession': accession, 'data_name': data_name}}
+    for ac in af['data']:
+        for ntg in af['metadata']['names_list']:
+            if ntg not in af['data'][ac]:
+                af['data'][ac][ntg] = ''
+    _gen_name_counts(af)
     return af
 
 
@@ -184,7 +232,7 @@ def aff_save2(af, f_name: str, header_top: str =None, header_bottom: str =None):
         for tg in af['metadata']['tags_dict']:
             print(f"#\t{tg}\t{af['metadata']['tags_dict'][tg]}", file=fout)
         print("#", file=fout)
-        _gen_counts(af)
+        aff_gen_counts(af)
         str_counts = _get_string_counts(af)
         print(str_counts, file=fout)
         if header_bottom:
@@ -329,7 +377,7 @@ def _get_string_counts(af):
     return _msg
 
 
-def _gen_counts(af):
+def aff_gen_counts(af):
     _gen_tag_counts(af)
     _gen_name_counts(af)
 
