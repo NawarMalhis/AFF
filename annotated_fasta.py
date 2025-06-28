@@ -150,7 +150,8 @@ def aff_load2(in_file: str, data_name: str='Data has no name'):  # , _mark=None
     return af
 
 
-def aff_load_simple(in_file: str, data_name: str='Data has no name', tg: str= 'ANN', tag_description: str= 'Annotation'):
+def aff_load_simple(in_file: str, data_name: str='Data has no name', tg: str= 'ANN',
+                    tag_description: str= 'Source annotation'):
     af_sequences = {}
     tags_dict = {tg: tag_description}
     names_list = ['Fasta']
@@ -168,11 +169,11 @@ def aff_load_simple(in_file: str, data_name: str='Data has no name', tg: str= 'A
                 continue
             if line[0] == '>':
                 l_num = 1
-                hd_lst = line[1:].replace(':', '=').split('|')
+                hd_lst = line[1:].split('|')
                 ac = hd_lst[0]
                 af_sequences[ac] = {accession: ac}
                 for hdn in hd_lst:
-                    two_parts = hdn.split('=')
+                    two_parts = hdn.replace(':', '=').split('=')
                     if len(two_parts) == 2:
                         af_sequences[ac][two_parts[0]] = two_parts[1]
                         if two_parts[0] not in names_list:
