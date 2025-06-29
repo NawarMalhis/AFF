@@ -150,10 +150,10 @@ def aff_load2(in_file: str, data_name: str='Data has no name'):  # , _mark=None
     return af
 
 
-def aff_load_simple(in_file: str, data_name: str='Data has no name', tg: str= 'ANN',
+def aff_load_simple(in_file: str, data_name: str='Data has no name', tag: str= 'ANN',
                     tag_description: str= 'Source annotation'):
     af_sequences = {}
-    tags_dict = {tg: tag_description}
+    tags_dict = {tag: tag_description}
     names_list = ['Fasta']
     _more_tags = False
     _id_counts = False
@@ -184,7 +184,7 @@ def aff_load_simple(in_file: str, data_name: str='Data has no name', tg: str= 'A
                 l_num = 2
                 continue
             if l_num == 2:
-                af_sequences[ac][tg] = line
+                af_sequences[ac][tag] = line
                 l_num = 0
                 continue
             # else:
@@ -216,12 +216,27 @@ def aff_load_fasta(in_file: str, data_name: str='Data has no name'):
                 af['data'][ac]['seq'] = af['data'][ac]['seq'] + line
     return af
 
+def _validate_header_extra(he: str=None):
+    _ret = True
+    if he is None:
+        return True
+    lst = he.split('\n')
+    for line in lst:
+        if len(line) == 0:
+            return False
+        if line[0] != '#':
+            return False
+    return True
+
 
 def aff_save2(af, f_name: str, header_top: str =None, header_bottom: str =None):
     with open(f_name, 'w') as fout:
         print(f"# Data Name:\t{af['metadata']['data_name']}\n#", file=fout)
         if header_top:
-            print(header_top, file=fout)
+            if _validate_header_extra(header_top):
+                print(header_top, file=fout)
+            else:
+                print(f"BAD header_top:\t{header_top}", flush=True)
         print(f"# Sequences:\t{len(af['data']):,}", file=fout)
         print("#", file=fout)
         print("# Format:", file=fout)
@@ -237,8 +252,11 @@ def aff_save2(af, f_name: str, header_top: str =None, header_bottom: str =None):
         str_counts = _get_string_counts(af)
         print(str_counts, file=fout)
         if header_bottom:
-            print('#', file=fout)
-            print(header_bottom, file=fout)
+            if _validate_header_extra(header_bottom):
+                print('#', file=fout)
+                print(header_bottom, file=fout)
+            else:
+                print(f"BAD header_bottom:\t{header_bottom}", flush=True)
         print('#', file=fout)
         for ac in af['data']:
             ac_o = ac
