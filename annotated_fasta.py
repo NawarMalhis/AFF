@@ -1,4 +1,6 @@
 import copy
+from crc64iso.crc64iso import crc64
+import requests
 
 
 def annotated_fasta(data_name: str='Data has no Name', names_list: list=None, accession: str=None):
@@ -11,7 +13,7 @@ def annotated_fasta(data_name: str='Data has no Name', names_list: list=None, ac
                                      'accession': accession, 'data_name': data_name}}
 
 
-def aff_load0(in_file: str, name_data: str='Data has no Name', accession: str=None):  # , _mark=None
+def aff_load0(in_file: str, data_name: str='Data has no Name', accession: str=None):  # , _mark=None
     af_sequences = {}
     tags = []
     name_tags = []
@@ -52,17 +54,23 @@ def aff_load0(in_file: str, name_data: str='Data has no Name', accession: str=No
             continue
     af0 = {'data': af_sequences, 'metadata': {'tags': tags, 'name_tags': name_tags, 'statistics': None}}
     # -------------------------------------------------------------------------------------------------------
-    af = annotated_fasta()
+    # for ac in af0['data']:
+    #     for ntg in af0['metadata']['name_tags']:
+    #
+    af = annotated_fasta(data_name=data_name)
     for tg in af0['metadata']['tags']:
         af['metadata']['tags_dict'][tg] = 'xxx'
     if accession is None:
-        accession = 'Fasta_ID'
+        accession = 'Fasta'
+    af['metadata']['accession'] = accession
     af['metadata']['names_list'].append(accession)
     for ntg in af0['metadata']['name_tags']:
-        af['metadata']['names_list'].append(ntg)
+        af['metadata']['names_list'].append(ntg.split(';'))
     for ac in af0['data']:
         af['data'][ac] = af0['data'][ac]
-        af['data'][ac][accession] = ac
+        af['data'][ac][accession] = [ac]
+        for ntg in af0['metadata']['name_tags']:
+            af['data'][ac][ntg] = af0['data'][ac][ntg].split(';')
     # print(len(af['data']), flush=True)
     # for ac in af['data']:
     #     print(ac, list(af['data'][ac].keys()))
@@ -93,7 +101,6 @@ def aff_load2(in_file: str, data_name: str='Data has no name'):  # , _mark=None
                 if _more_tags:
                     _lst = line.split('\t')
                     if len(_lst) > 1:
-                        # if _lst[1] == 'TAG':
                         if len(_lst) > 1:
                             info = _lst[2]
                         else:
@@ -129,7 +136,8 @@ def aff_load2(in_file: str, data_name: str='Data has no name'):  # , _mark=None
                     ex_lst = extra.split('=')
                     if len(ex_lst) != 2:
                         continue
-                    af_sequences[ac][ex_lst[0]] = ex_lst[1]
+                    lst2 = ex_lst[1].split(';')
+                    af_sequences[ac][ex_lst[0]] = lst2
                     if ex_lst[0] not in names_list:
                         names_list.append(ex_lst[0])
                 continue
@@ -171,11 +179,11 @@ def aff_load_simple(in_file: str, data_name: str='Data has no name', tag: str= '
                 l_num = 1
                 hd_lst = line[1:].split('|')
                 ac = hd_lst[0]
-                af_sequences[ac] = {accession: ac}
+                af_sequences[ac] = {accession: [ac]}
                 for hdn in hd_lst:
                     two_parts = hdn.replace(':', '=').split('=')
                     if len(two_parts) == 2:
-                        af_sequences[ac][two_parts[0]] = two_parts[1]
+                        af_sequences[ac][two_parts[0]] = two_parts[1].split(';')
                         if two_parts[0] not in names_list:
                             names_list.append(two_parts[0])
                 continue
@@ -262,7 +270,10 @@ def aff_save2(af, f_name: str, header_top: str =None, header_bottom: str =None):
             ac_o = ac
             for tg in af['data'][ac]:
                 if tg in af['metadata']['names_list']:
-                    ac_o = f"{ac_o}|{tg}={af['data'][ac][tg]}"
+                    ac_o = f"{ac_o}|{tg}={af['data'][ac][tg][0]}"
+                    if len(af['data'][ac][tg]) > 1:
+                        for xx in af['data'][ac][tg][1:]:
+                            ac_o = f"{ac_o};{xx}"
             print(f">{ac_o}\n{af['data'][ac]['seq']}", file=fout)
             for tg in af['metadata']['tags_dict']:
                 print(f"{af['data'][ac][tg]}", file=fout)
@@ -431,10 +442,41 @@ def _gen_name_counts(af):
                 # print(ac, af['data'][ac][ntg], flush=True)
                 if len(af['data'][ac][ntg]) > 0:
                     af['metadata']['counts']['names_dict'][ntg]['total'] += 1
-                    ntg_set_dict[ntg].add(af['data'][ac][ntg])
+                    ntg_set_dict[ntg].add(af['data'][ac][ntg][0])
     for ntg in af['metadata']['names_list']:
         af['metadata']['counts']['names_dict'][ntg]['unique'] = len(ntg_set_dict[ntg])
 
+
+def _get_url(url, **kwargs):
+    response = requests.get(url, **kwargs)
+    if not response.ok:
+        print(response.text)
+        return None
+        # response.raise_for_status()
+        # sys.exit()
+    return response
+
+
+def get_ac_list(seq):
+    print(seq)
+    ac_list = []
+    checksum = crc64(seq)
+    r = _get_url(f"https://rest.uniprot.org/uniparc/search?query=checksum: {checksum}")
+    if r is not None:
+        data = r.json()
+        # for xx in data["results"][0]['uniParcCrossReferences']:
+            # if 'UniProtKB' in xx['database']:
+            #     ac_list.append(xx['id'])
+        for ac in data["results"][0]['uniProtKBAccessions']:
+            response = requests.get(f'https://rest.uniprot.org/uniprotkb/{ac}.fasta')
+            if response.ok:
+                r_seq = ''
+                for ss in response.text.split('\n')[1:]:
+                    if len(ss) > 0:
+                        r_seq = r_seq + ss
+                if r_seq == seq:
+                    ac_list.append(ac)
+    return ac_list
 
 
 
