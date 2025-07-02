@@ -153,7 +153,7 @@ def aff_load2(in_file: str, data_name: str='Data has no name'):  # , _mark=None
     for ac in af['data']:
         for ntg in af['metadata']['names_list']:
             if ntg not in af['data'][ac]:
-                af['data'][ac][ntg] = ''
+                af['data'][ac][ntg] = []
     _gen_name_counts(af)
     return af
 
@@ -270,10 +270,11 @@ def aff_save2(af, f_name: str, header_top: str =None, header_bottom: str =None):
             ac_o = ac
             for tg in af['data'][ac]:
                 if tg in af['metadata']['names_list']:
-                    ac_o = f"{ac_o}|{tg}={af['data'][ac][tg][0]}"
-                    if len(af['data'][ac][tg]) > 1:
-                        for xx in af['data'][ac][tg][1:]:
-                            ac_o = f"{ac_o};{xx}"
+                    if len(af['data'][ac][tg]) > 0:
+                        ac_o = f"{ac_o}|{tg}={af['data'][ac][tg][0]}"
+                        if len(af['data'][ac][tg]) > 1:
+                            for xx in af['data'][ac][tg][1:]:
+                                ac_o = f"{ac_o};{xx}"
             print(f">{ac_o}\n{af['data'][ac]['seq']}", file=fout)
             for tg in af['metadata']['tags_dict']:
                 print(f"{af['data'][ac][tg]}", file=fout)
@@ -387,6 +388,52 @@ def aff_add_tag(af, tag: str):
         print(f"{tag} exist in af", flush=True)
 
 
+def aff_add_uniprot_ids(af):
+    if 'UniProt' not in af['metadata']['names_list']:
+        af['metadata']['names_list'].append('UniProt')
+    for ac in af['data']:
+        ac_list = get_uniprot_id_list(seq=af['data'][ac]['seq'])
+        if 'UniProt' not in af['data'][ac]:
+            af['data'][ac]['UniProt'] = ac_list
+        else:
+            up0 = af['data'][ac]['UniProt'][0]
+            ss = set(af['data'][ac]['UniProt'] + ac_list)
+            ss.remove(up0)
+            af['data'][ac]['UniProt'] = [up0] + list(ss)
+
+
+def aff_add_ncbi_ids(af):
+    # NCBI RefSeq
+    rs = False
+    for ac0 in af['data']:
+        if 'UniProt' in af['data'][ac0]:
+            for ac in af['data'][ac0]['UniProt']:
+                lst = _get_ncbi(ac)
+                if len(lst) > 0:
+                    if 'NCBI_RefSeq' in af['data'][ac0]:
+                        lst = list(set(lst + af['data'][ac0]['NCBI_RefSeq']))
+                    af['data'][ac0]['NCBI_RefSeq'] = lst
+                    rs = True
+    if rs:
+        af['metadata']['names_list'].append('NCBI_RefSeq')
+        for ac in af['data']:
+            if 'NCBI_RefSeq' not in af['data'][ac]:
+                af['data'][ac]['NCBI_RefSeq'] = []
+
+
+def _get_ncbi(ac):
+    url = f"https://rest.uniprot.org/uniprotkb/{ac}.json"
+    response = requests.get(url)
+    ret_lst = []
+    if response.ok:
+        data = response.json()
+        for xref in data.get("uniProtKBCrossReferences", []):
+            if xref["database"] == "RefSeq":
+                ret_lst.append(xref["id"])
+                # print("NCBI RefSeq ID:", xref["id"])
+    return ret_lst
+
+
 def _get_string_counts(af):
     _msg = ''
     if af['metadata']['counts'] is None:
@@ -457,8 +504,8 @@ def _get_url(url, **kwargs):
     return response
 
 
-def get_ac_list(seq):
-    print(seq)
+def get_uniprot_id_list(seq):
+    # print(seq)
     ac_list = []
     checksum = crc64(seq)
     r = _get_url(f"https://rest.uniprot.org/uniparc/search?query=checksum: {checksum}")
@@ -468,6 +515,8 @@ def get_ac_list(seq):
             # if 'UniProtKB' in xx['database']:
             #     ac_list.append(xx['id'])
         for ac in data["results"][0]['uniProtKBAccessions']:
+            if '.' in ac:
+                continue
             response = requests.get(f'https://rest.uniprot.org/uniprotkb/{ac}.fasta')
             if response.ok:
                 r_seq = ''
