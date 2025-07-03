@@ -9,6 +9,8 @@ AFF files are divided into two sections, the header section and the data section
 ```bash
 # Data Name: MC2 CV1 Dataset
 #
+# Optional top comments
+#
 # Sequences: 141
 #
 # Format:
@@ -17,7 +19,7 @@ AFF files are divided into two sections, the header section and the data section
 # MoRFTest High quality MoRF annotations used for testing
 # MoRFTrain Low quality MoRF annotations used for training
 #
-# IDs Counts:
+# ID Counts:
 # ID All# Unique#
 # Fasta 141 141 AC
 # UniProt 140 140
@@ -43,6 +45,8 @@ AFF files are divided into two sections, the header section and the data section
 # MoRFTest 113 135 28,581 8,181 48,392
 # MoRFTrain 141 172 28,812 8,902 47,440
 #
+# Optional bottom comments
+#
 >DP00958|Fasta=DP00958|UniProt=B3LPU2;C7GS09;G2WGJ2;A0A0L8VMH3;N1P1V7;H0GIH2;P46984;A6ZQF1;C8ZB35;A0A6C1DTD4|AlphaFoldDB=B3LPU2|Pfam=PF08738|PDB=4WXA;4WX8|BioGRID=33578|DIP=DIP-1474N|IntAct=P46984|MINT=P46984|STRING=4932.YJL184W|KEGG=sce:YJL184W|DisProt=DP00958
 MKLPVAQYSAPDGVEKSFAPIRDDPRYMTTEGRTTGPSDHVLNAGQIDRDKPSEPERTKDGSQLTYLGQLRTQLTGLQDDINEFLTGRMELAKNKKKAGADEKRIQEEINQLLDGGDGDEDAV
 011111111111111111111000000000000000000000000000000000000000000011111111111111111111111111111111111111111111111110000000000
@@ -54,6 +58,14 @@ MGKLSTHVLDTAHGTPAAAMRVELYRIAASGTPELLKRVVTNLDGRTDAPLLSGDEMRTGIYELQFHVAEYFEGRGAELA
 ```
 ## The header section
 The header section outlines the format of the data annotation, as well as provides some statistical information about these annotations. Lines in the header start with the ‘#’ character, indicating non-data lines.
+The header is divided into seven parts.
+1.	Data name
+2.	Optional top comments
+3.	Sequence count.
+4.	Data annotation format.
+5.	ID counts
+6.	Tag counts
+7.	Optional bottom comments
 
 
 
