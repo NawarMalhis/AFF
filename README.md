@@ -5,7 +5,7 @@ The Annotated FASTA Format (AFF), with a .af file extension, is a text-based for
 
 AFF files are divided into two sections, the header section and the data section. See the AFF example below.
 
-# AFF example
+### AFF example
 ```bash
 # Data Name: MC2 CV1 Dataset
 #
@@ -52,6 +52,7 @@ MGKLSTHVLDTAHGTPAAAMRVELYRIAASGTPELLKRVVTNLDGRTDAPLLSGDEMRTGIYELQFHVAEYFEGRGAELA
 1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
 1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
 ```
+## The header section
 The header section outlines the format of the data annotation, as well as provides some statistical information about these annotations. Lines in the header start with the ‘#’ character, indicating non-data lines.
 
 
