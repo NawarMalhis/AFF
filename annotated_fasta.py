@@ -388,11 +388,12 @@ def aff_add_tag(af, tag: str):
         print(f"{tag} exist in af", flush=True)
 
 
-def aff_add_uniprot_ids(af):
+def aff_add_uniprot_ids(af, max_id_count=10):
     if 'UniProt' not in af['metadata']['names_list']:
         af['metadata']['names_list'].append('UniProt')
-    for ac in af['data']:
-        ac_list = get_uniprot_id_list(seq=af['data'][ac]['seq'])
+    for ii, ac in enumerate(af['data']):
+        print(ii, ac, end='\t', flush=True)
+        ac_list = get_uniprot_id_list(seq=af['data'][ac]['seq'], max_id_count=max_id_count)
         if 'UniProt' not in af['data'][ac]:
             af['data'][ac]['UniProt'] = ac_list
         else:
@@ -402,36 +403,48 @@ def aff_add_uniprot_ids(af):
             af['data'][ac]['UniProt'] = [up0] + list(ss)
 
 
-def aff_add_ncbi_ids(af):
+def aff_add_other_ids(af, requested_other_ids=None):
     # NCBI RefSeq
-    rs = False
+    used_set = set()
     for ac0 in af['data']:
         if 'UniProt' in af['data'][ac0]:
             for ac in af['data'][ac0]['UniProt']:
-                lst = _get_ncbi(ac)
-                if len(lst) > 0:
-                    if 'NCBI_RefSeq' in af['data'][ac0]:
-                        lst = list(set(lst + af['data'][ac0]['NCBI_RefSeq']))
-                    af['data'][ac0]['NCBI_RefSeq'] = lst
-                    rs = True
-    if rs:
-        af['metadata']['names_list'].append('NCBI_RefSeq')
+                ret_dict = _get_all_ids(ac)
+                # print('================\t', ac0, ac, ret_dict, flush=True)
+                for _db in ret_dict:
+                    if requested_other_ids is not None:
+                        if _db not in requested_other_ids:
+                            continue
+                    if len(ret_dict[_db]) < 1:
+                        continue
+                    # print('================\t', ac0, _db, ret_dict[_db], flush=True)  # af['data'][ac0]
+                    if _db in af['data'][ac0]:
+                        ret_dict[_db] = list(set(ret_dict[_db] + af['data'][ac0][_db]))
+                    else:
+                        af['data'][ac0][_db] = ret_dict[_db]
+                    used_set.add(_db)
+    for _db in used_set:
+        if _db not in af['metadata']['names_list']:
+            af['metadata']['names_list'].append(_db)
         for ac in af['data']:
-            if 'NCBI_RefSeq' not in af['data'][ac]:
-                af['data'][ac]['NCBI_RefSeq'] = []
+            if _db not in af['data'][ac]:
+                af['data'][ac][_db] = []
 
 
-def _get_ncbi(ac):
+def _get_all_ids(ac):
     url = f"https://rest.uniprot.org/uniprotkb/{ac}.json"
     response = requests.get(url)
-    ret_lst = []
+    ret_dict = {}
     if response.ok:
         data = response.json()
         for xref in data.get("uniProtKBCrossReferences", []):
-            if xref["database"] == "RefSeq":
-                ret_lst.append(xref["id"])
-                # print("NCBI RefSeq ID:", xref["id"])
-    return ret_lst
+            _db = xref["database"]
+            if _db not in ret_dict:
+                ret_dict[_db] = []
+            ret_dict[_db].append(xref["id"])
+    for _db in ret_dict:
+        ret_dict[_db] = list(set(ret_dict[_db]))
+    return ret_dict
 
 
 def _get_string_counts(af):
@@ -504,7 +517,7 @@ def _get_url(url, **kwargs):
     return response
 
 
-def get_uniprot_id_list(seq):
+def get_uniprot_id_list(seq, max_id_count=10):
     # print(seq)
     ac_list = []
     checksum = crc64(seq)
@@ -514,6 +527,7 @@ def get_uniprot_id_list(seq):
         # for xx in data["results"][0]['uniParcCrossReferences']:
             # if 'UniProtKB' in xx['database']:
             #     ac_list.append(xx['id'])
+        print(len(data["results"][0]['uniProtKBAccessions']), flush=True)
         for ac in data["results"][0]['uniProtKBAccessions']:
             if '.' in ac:
                 continue
@@ -525,6 +539,8 @@ def get_uniprot_id_list(seq):
                         r_seq = r_seq + ss
                 if r_seq == seq:
                     ac_list.append(ac)
+                if len(ac_list) >= max_id_count:
+                    break
     return ac_list
 
 
