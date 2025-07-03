@@ -3,8 +3,9 @@ Annotated fasta format
 
 The Annotated FASTA Format (AFF), with a .af file extension, is a text-based format for protein amino acid sequences that includes multiple annotation tags and a statistical summary header. This AFF Python library provides tools for reading, writing, and processing .af files, as well as reading residue-level scores, generating ROC and precision-recall plots, and calculating metrics such as AUC, average precision score (APS), and success rate.
 
-More details soon.
+AFF files are divided into two sections, the header section and the data section. See the AFF example below.
 
+# AFF example
 ```bash
 # Data Name: MC2 CV1 Dataset
 #
@@ -51,3 +52,11 @@ MGKLSTHVLDTAHGTPAAAMRVELYRIAASGTPELLKRVVTNLDGRTDAPLLSGDEMRTGIYELQFHVAEYFEGRGAELA
 1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
 1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
 ```
+The header section outlines the format of the data annotation, as well as provides some statistical information about these annotations. Lines in the header start with the ‘#’ character, indicating non-data lines.
+
+
+
+More details soon.
+
+
+
