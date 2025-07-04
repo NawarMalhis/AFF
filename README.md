@@ -13,36 +13,36 @@ AFF files are divided into two sections, the header section and the data section
 # Sequences: 141
 #
 # Format:
-# >accession|Fasta=Fasta_ID|UniProt=UniProt_ID|PDB=PDB_ID|PHI-base=PHI-base_ID|DisProt=DisProt_ID|IntAct=IntAct_ID|ELM=ELM_ID|STRING=STRING_ID|IDEAL=IDEAL_ID|SignaLink=SignaLink_ID|Pfam=Pfam_ID|AlphaFoldDB=AlphaFoldDB_ID|DrugBank=DrugBank_ID|BioGRID=BioGRID_ID|MINT=MINT_ID|DIP=DIP_ID|KEGG=KEGG_ID|BindingDB=BindingDB_ID
-# Amino acid sequence
-# MoRFTest High quality MoRF annotations used for testing
-# MoRFTrain Low quality MoRF annotations used for training
+#   >accession|Fasta=Fasta_ID|UniProt=UniProt_ID|PDB=PDB_ID|PHI-base=PHI-base_ID|DisProt=DisProt_ID|IntAct=IntAct_ID|ELM=ELM_ID|STRING=STRING_ID|IDEAL=IDEAL_ID|SignaLink=SignaLink_ID|Pfam=Pfam_ID|AlphaFoldDB=AlphaFoldDB_ID|DrugBank=DrugBank_ID|BioGRID=BioGRID_ID|MINT=MINT_ID|DIP=DIP_ID|KEGG=KEGG_ID|BindingDB=BindingDB_ID
+#   Amino acid sequence
+#   MoRFTest High quality MoRF annotations used for testing
+#   MoRFTrain Low quality MoRF annotations used for training
 #
 # ID Counts:
-# ID All# Unique#
-# Fasta 141 141 AC
-# UniProt 140 140
-# PDB 124 123
-# PHI-base 2 2
-# DisProt 56 56
-# IntAct 102 102
-# ELM 40 40
-# STRING 114 114
-# IDEAL 54 54
-# SignaLink 65 65
-# Pfam 135 108
-# AlphaFoldDB 125 125
-# DrugBank 27 25
-# BioGRID 87 87
-# MINT 82 82
-# DIP 81 81
-# KEGG 122 122
-# BindingDB 34 34
+#   ID All# Unique#
+#   Fasta 141 141 AC
+#   UniProt 140 140
+#   PDB 124 123
+#   PHI-base 2 2
+#   DisProt 56 56
+#   IntAct 102 102
+#   ELM 40 40
+#   STRING 114 114
+#   IDEAL 54 54
+#   SignaLink 65 65
+#   Pfam 135 108
+#   AlphaFoldDB 125 125
+#   DrugBank 27 25
+#   BioGRID 87 87
+#   MINT 82 82
+#   DIP 81 81
+#   KEGG 122 122
+#   BindingDB 34 34
 #
 # Tags Counts:
-# tag Seq# Seg# '0' '1' '-'
-# MoRFTest 113 135 28,581 8,181 48,392
-# MoRFTrain 141 172 28,812 8,902 47,440
+#   tag Seq# Seg# '0' '1' '-'
+#   MoRFTest 113 135 28,581 8,181 48,392
+#   MoRFTrain 141 172 28,812 8,902 47,440
 #
 # Optional bottom comments
 #
@@ -56,7 +56,7 @@ MGKLSTHVLDTAHGTPAAAMRVELYRIAASGTPELLKRVVTNLDGRTDAPLLSGDEMRTGIYELQFHVAEYFEGRGAELA
 1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
 ```
 ## The header section
-The header section outlines the format of the data annotation, as well as provides some statistical information about these annotations. Lines in the header start with the ‘#’ character, indicating non-data lines.
+The header section outlines the format of the data annotation and provides some statistical information about these annotations. Lines in the header start with the ‘#’ character, indicating non-data lines.
 The header is divided into seven parts.
 1.	Data name
 2.	Optional top comments
@@ -66,7 +66,13 @@ The header is divided into seven parts.
 6.	Tag counts
 7.	Optional bottom comments
 
+The **AFF (Data annotation format)** defines the structure for representing a single annotated protein sequence and consists of three main components:
+- **Header Line:** Starts with a '>' character, followed by the sequence accession and optionally one or more identifiers, often referencing specialized databases.
+- **Amino Acid Sequence:** Provided on the line immediately following the header. It uses one-letter amino acid codes (e.g., A, R, N, D) and is limited to a single line.
+- **Annotation Line(s):** One or more lines follow the amino acid sequence, each corresponding to a specific feature. These lines must be the same length as the amino acid sequence, with each character aligned to a residue. Standard annotation characters include '0' (feature absent), '1' (feature present), and '-' (unknown). Additional user-defined characters can also be used to represent other annotations.
 
+
+## The data section
 
 More details soon.
 
