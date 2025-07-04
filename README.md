@@ -67,7 +67,7 @@ The header is divided into seven parts.
 7.	Optional bottom comments
 
 The **AFF (Data annotation format)** defines the structure for representing a single annotated protein sequence and consists of three main components:
-- **Header Line:** Starts with a '>' character, followed by the sequence accession and one or more identifier phrases often referencing specialized databases separated by '|'. Each identifier phrase consists of the identifier source, an '=' character, and a list of IDs separated by ';'. 
+- **Header Line:** Starts with a '>' character, followed by the sequence accession and one or more identifier phrases often referencing specialized databases separated by '|'. Each identifier phrase consists of the identifier source, the '=' character, and a list of IDs separated by ';'. The first identifier phrase with the source 'FASTA' refers to the identifier used by the original fasta file, which is usually the accession.
 - **Amino Acid Sequence:** Provided on the line immediately following the header. It uses one-letter amino acid codes (e.g., A, R, N, D) and is limited to a single line.
 - **Annotation Line(s):** One or more lines follow the amino acid sequence, each corresponding to a specific feature. These lines must be the same length as the amino acid sequence, with each character aligned to a residue. Standard annotation characters include '0' (feature absent), '1' (feature present), and '-' (unknown). Additional user-defined characters can also be used to represent other annotations.
 
