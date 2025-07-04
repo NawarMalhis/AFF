@@ -20,7 +20,7 @@ AFF files are divided into two sections, the header section and the data section
 #
 # ID Counts:
 #   ID All# Unique#
-#   Fasta 141 141 AC
+#   Fasta 141 141
 #   UniProt 140 140
 #   PDB 124 123
 #   PHI-base 2 2
@@ -54,6 +54,7 @@ MKLPVAQYSAPDGVEKSFAPIRDDPRYMTTEGRTTGPSDHVLNAGQIDRDKPSEPERTKDGSQLTYLGQLRTQLTGLQDD
 MGKLSTHVLDTAHGTPAAAMRVELYRIAASGTPELLKRVVTNLDGRTDAPLLSGDEMRTGIYELQFHVAEYFEGRGAELAHEPFLDLIPIRFGIADEDGNYHVPLLVSPWSYSTYRGS
 1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
 1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
+... more data
 ```
 ## The header section
 The header section outlines the format of the data annotation and provides some statistical information about these annotations. Lines in the header start with the ‘#’ character, indicating non-data lines.
@@ -61,16 +62,19 @@ The header is divided into seven parts.
 1.	Data name
 2.	Optional top comments
 3.	Sequence count.
-4.	Data annotation format.
-5.	ID counts
-6.	Tag counts
+4.	**Data annotation format:** See below.
+5.	**ID counts:** See below.
+6.	**Tag counts:** See below.
 7.	Optional bottom comments
 
 The **AFF (Data annotation format)** defines the structure for representing a single annotated protein sequence and consists of three main components:
 - **Header Line:** Starts with a '>' character, followed by the sequence accession and one or more identifier phrases often referencing specialized databases separated by '|'. Each identifier phrase consists of the identifier source, the '=' character, and a list of IDs separated by ';'. The first identifier phrase with the source 'FASTA' refers to the identifier used by the original fasta file, which is usually the accession.
 - **Amino Acid Sequence:** Provided on the line immediately following the header. It uses one-letter amino acid codes (e.g., A, R, N, D) and is limited to a single line.
-- **Annotation Line(s):** One or more lines follow the amino acid sequence, each corresponding to a specific feature. These lines must be the same length as the amino acid sequence, with each character aligned to a residue. Standard annotation characters include '0' (feature absent), '1' (feature present), and '-' (unknown). Additional user-defined characters can also be used to represent other annotations.
+- **Annotation Line(s):** One or more lines follow the amino acid sequence, each corresponding to a specific feature or **TAG**. These lines must be the same length as the amino acid sequence, with each character aligned to a residue. Standard annotation characters include '0' (feature absent), '1' (feature present), and '-' (unknown). Additional user-defined characters can also be used to represent other annotations.
 
+The **ID counts:** count all identifier phrases used. In the above AFF file example, 135 out of the 141 total sequences have Pfam IDs, with 108 unique IDs. Note that it only considers the first ID of each identifier phrase when computing unique IDs.
+
+The **Tag counts:** count the three standard annotation characters '0' (feature absent), '1' (feature present), and '-' (unknown) for each annotation TAG.
 
 ## The data section
 
