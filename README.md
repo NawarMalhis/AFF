@@ -15,8 +15,8 @@ AFF files are divided into two sections, the header section and the data section
 # Format:
 #   >accession|Fasta=Fasta_ID|UniProt=UniProt_ID|PDB=PDB_ID|PHI-base=PHI-base_ID|DisProt=DisProt_ID|IntAct=IntAct_ID|ELM=ELM_ID|STRING=STRING_ID|IDEAL=IDEAL_ID|SignaLink=SignaLink_ID|Pfam=Pfam_ID|AlphaFoldDB=AlphaFoldDB_ID|DrugBank=DrugBank_ID|BioGRID=BioGRID_ID|MINT=MINT_ID|DIP=DIP_ID|KEGG=KEGG_ID|BindingDB=BindingDB_ID
 #   Amino acid sequence
-#   MoRFTest High quality MoRF annotations used for testing
-#   MoRFTrain Low quality MoRF annotations used for training
+#   MoRFTest High-quality MoRF annotations used for testing
+#   MoRFTrain Low-quality MoRF annotations used for training
 #
 # ID Counts:
 #   ID All# Unique#
@@ -48,7 +48,7 @@ AFF files are divided into two sections, the header section and the data section
 #
 >DP00958|Fasta=DP00958|UniProt=B3LPU2;C7GS09;G2WGJ2;A0A0L8VMH3;N1P1V7;H0GIH2;P46984;A6ZQF1;C8ZB35;A0A6C1DTD4|AlphaFoldDB=B3LPU2|Pfam=PF08738|PDB=4WXA;4WX8|BioGRID=33578|DIP=DIP-1474N|IntAct=P46984|MINT=P46984|STRING=4932.YJL184W|KEGG=sce:YJL184W|DisProt=DP00958
 MKLPVAQYSAPDGVEKSFAPIRDDPRYMTTEGRTTGPSDHVLNAGQIDRDKPSEPERTKDGSQLTYLGQLRTQLTGLQDDINEFLTGRMELAKNKKKAGADEKRIQEEINQLLDGGDGDEDAV
-011111111111111111111000000000000000000000000000000000000000000011111111111111111111111111111111111111111111111110000000000
+0--------------------000000000000000000000000000000000000000000011111111111111111111111111111111111111111111111110000000000
 011111111111111111111000000000000000000000000000000000000000000011111111111111111111111111111111111111111111111110000000000
 >Q8YFU1|Fasta=Q8YFU1|UniProt=A0A0H3ANC4;Q2YMM2;A0A0E1X347;A0AB36PRZ8;C0RHL4;A0A7U8K8P4;A0AAE9LAS2;C7LGK0;A0A0F6APL3;A0AAW7BBF0|AlphaFoldDB=A0A0H3ANC4|KEGG=bov:BOV_0511|Pfam=PF00576|PDB=4Q14|STRING=359391.BAB1_0532
 MGKLSTHVLDTAHGTPAAAMRVELYRIAASGTPELLKRVVTNLDGRTDAPLLSGDEMRTGIYELQFHVAEYFEGRGAELAHEPFLDLIPIRFGIADEDGNYHVPLLVSPWSYSTYRGS
@@ -67,7 +67,7 @@ The header is divided into seven parts.
 7.	Optional bottom comments
 
 The **AFF (Data annotation format)** defines the structure for representing a single annotated protein sequence and consists of three main components:
-- **Header Line:** Starts with a '>' character, followed by the sequence accession and optionally one or more identifiers, often referencing specialized databases.
+- **Header Line:** Starts with a '>' character, followed by the sequence accession and one or more identifier phrases often referencing specialized databases separated by '|'. Each identifier phrase consists of the identifier source, an '=' character, and a list of IDs separated by ';'. 
 - **Amino Acid Sequence:** Provided on the line immediately following the header. It uses one-letter amino acid codes (e.g., A, R, N, D) and is limited to a single line.
 - **Annotation Line(s):** One or more lines follow the amino acid sequence, each corresponding to a specific feature. These lines must be the same length as the amino acid sequence, with each character aligned to a residue. Standard annotation characters include '0' (feature absent), '1' (feature present), and '-' (unknown). Additional user-defined characters can also be used to represent other annotations.
 
