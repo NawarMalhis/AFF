@@ -93,7 +93,7 @@ def aff_process_disprot(release, dp_path):
 
     for dd in data['data']:
         ac = dd['disprot_id']
-        disprot['data'][ac] = {'DisProt': ac, 'UniProt': dd['acc'], 'OX': f"{dd['ncbi_taxon_id']}",
+        disprot['data'][ac] = {'DisProt': [ac], 'UniProt': [dd['acc']], 'OX': [f"{dd['ncbi_taxon_id']}"],
                                'seq': dd['sequence']}
 
         for tid in tags_list:

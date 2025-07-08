@@ -101,13 +101,14 @@ def aff_load2(in_file: str, data_name: str='Data has no name'):  # , _mark=None
                 if _more_tags:
                     _lst = line.split('\t')
                     if len(_lst) > 1:
-                        if len(_lst) > 1:
+                        if len(_lst) > 2:
                             info = _lst[2]
                         else:
                             info = 'Annotation'
                         tags_dict[_lst[1]] = info
                         tags_list.append(_lst[1])
-                    if 'IDs Counts:' in line:
+                    if 'ID Counts:' in line:
+                        # print("ID counts", flush=True)
                         _more_tags = False
                         _id_counts = True
                     continue
@@ -281,6 +282,24 @@ def aff_save2(af, f_name: str, header_top: str =None, header_bottom: str =None):
     return
 
 
+def aff_save_simple(af, f_name: str, tag: str):
+    if tag not in af['metadata']['tags_dict']:
+        print(f"Error in aff_save_simple {f_name}:\t{tag} not found")
+        return
+    with open(f_name, 'w') as fout:
+        for ac in af['data']:
+            ac_o = ac
+            for tg in af['data'][ac]:
+                if tg in af['metadata']['names_list']:
+                    if len(af['data'][ac][tg]) > 0:
+                        ac_o = f"{ac_o}|{tg}={af['data'][ac][tg][0]}"
+                        if len(af['data'][ac][tg]) > 1:
+                            for xx in af['data'][ac][tg][1:]:
+                                ac_o = f"{ac_o};{xx}"
+            print(f">{ac_o}\n{af['data'][ac]['seq']}", file=fout)
+    return
+
+
 def aff_save_fasta(af, f_name: str):
     with open(f_name, 'w') as fout:
         for ac in af['data']:
@@ -406,8 +425,9 @@ def aff_add_uniprot_ids(af, max_id_count=10):
 def aff_add_other_ids(af, requested_other_ids=None):
     # NCBI RefSeq
     used_set = set()
-    for ac0 in af['data']:
+    for ii, ac0 in enumerate(af['data']):
         if 'UniProt' in af['data'][ac0]:
+            print(f"{ii}\t{ac0}\tother_ids:\t", end='', flush=True)
             for ac in af['data'][ac0]['UniProt']:
                 ret_dict = _get_all_ids(ac)
                 # print('================\t', ac0, ac, ret_dict, flush=True)
@@ -415,6 +435,7 @@ def aff_add_other_ids(af, requested_other_ids=None):
                     if requested_other_ids is not None:
                         if _db not in requested_other_ids:
                             continue
+                    print(f"{_db}\t", end='')
                     if len(ret_dict[_db]) < 1:
                         continue
                     # print('================\t', ac0, _db, ret_dict[_db], flush=True)  # af['data'][ac0]
@@ -423,6 +444,7 @@ def aff_add_other_ids(af, requested_other_ids=None):
                     else:
                         af['data'][ac0][_db] = ret_dict[_db]
                     used_set.add(_db)
+                print(flush=True)
     for _db in used_set:
         if _db not in af['metadata']['names_list']:
             af['metadata']['names_list'].append(_db)
@@ -452,12 +474,12 @@ def _get_string_counts(af):
     if af['metadata']['counts'] is None:
         return _msg
     if len(af['metadata']['names_list']) > 0:
-        _msg = _msg + f"# IDs Counts:\n#\tID \tAll#\tUnique#"
+        _msg = _msg + f"# ID Counts:\n#\tID \tAll#\tUnique#"
         for ntg in af['metadata']['names_list']:
             _msg = _msg + f"\n#\t{ntg}\t{af['metadata']['counts']['names_dict'][ntg]['total']:,}"
             _msg = _msg + f"\t{af['metadata']['counts']['names_dict'][ntg]['unique']:,}"
-            if ntg == af['metadata']['accession']:
-                _msg = _msg + "\tAC"
+            # if ntg == af['metadata']['accession']:
+            #     _msg = _msg + "\tAC"
         _msg = _msg + "\n#\n"
     _msg = _msg + "# Tags Counts:\n#\ttag\tSeq#\tSeg#\t'0'\t'1'\t'-'"
     for tg in af['metadata']['tags_dict']:
@@ -502,7 +524,7 @@ def _gen_name_counts(af):
                 # print(ac, af['data'][ac][ntg], flush=True)
                 if len(af['data'][ac][ntg]) > 0:
                     af['metadata']['counts']['names_dict'][ntg]['total'] += 1
-                    ntg_set_dict[ntg].add(af['data'][ac][ntg][0])
+                    ntg_set_dict[ntg] = ntg_set_dict[ntg].union(set(af['data'][ac][ntg]))
     for ntg in af['metadata']['names_list']:
         af['metadata']['counts']['names_dict'][ntg]['unique'] = len(ntg_set_dict[ntg])
 
