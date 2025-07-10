@@ -524,13 +524,19 @@ def _gen_tag_counts(af):
         af['metadata']['counts']['tags_dict'][tg] = {'seq': 0, 'seg': 0, '0': 0, '1': 0, '-': 0}
         for ac in af['data']:
             mask = str(af['data'][ac][tg])
-            mask = mask.replace('-', '0')
-            cnt = len([xx for xx in mask.split('0') if xx])
-            if cnt > 0:
-                af['metadata']['counts']['tags_dict'][tg]['seq'] += 1
-                af['metadata']['counts']['tags_dict'][tg]['seg'] += cnt
-            for cc in ['0', '1', '-']:
-                af['metadata']['counts']['tags_dict'][tg][cc] += af['data'][ac][tg].count(cc)
+            c_set = set(list(mask))
+            if '1' in c_set:
+                c_set.remove('1')
+                for oc in c_set:
+                    if oc != '0':
+                        mask = mask.replace(oc, '0')
+                # =========================================================
+                cnt = len([xx for xx in mask.split('0') if xx])
+                if cnt > 0:
+                    af['metadata']['counts']['tags_dict'][tg]['seq'] += 1
+                    af['metadata']['counts']['tags_dict'][tg]['seg'] += cnt
+                    for cc in ['0', '1', '-']:
+                        af['metadata']['counts']['tags_dict'][tg][cc] += af['data'][ac][tg].count(cc)
 
 
 def _gen_name_counts(af):
@@ -549,7 +555,7 @@ def _gen_name_counts(af):
                     af['metadata']['counts']['names_dict'][ntg]['total'] += len(af['data'][ac][ntg])
                     ntg_set_dict[ntg] = ntg_set_dict[ntg].union(set(af['data'][ac][ntg]))
                     cnt += len(af['data'][ac][ntg])
-        print(ntg, cnt)
+        # print(ntg, cnt)
     for ntg in af['metadata']['names_list']:
         af['metadata']['counts']['names_dict'][ntg]['unique'] = len(ntg_set_dict[ntg])
 
