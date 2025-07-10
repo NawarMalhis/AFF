@@ -155,7 +155,7 @@ def aff_load2(in_file: str, data_name: str='Data has no name'):  # , _mark=None
         for ntg in af['metadata']['names_list']:
             if ntg not in af['data'][ac]:
                 af['data'][ac][ntg] = []
-    _gen_name_counts(af)
+    # _gen_name_counts(af)
     return af
 
 
@@ -407,13 +407,18 @@ def aff_add_tag(af, tag: str):
         print(f"{tag} exist in af", flush=True)
 
 
-def aff_add_uniprot_ids(af, max_id_count=10):
+def aff_add_uniprot_ids(af, max_id_count=10, verbose=False):
     if 'UniProt' not in af['metadata']['names_list']:
         af['metadata']['names_list'].append('UniProt')
+    if 'OX' not in af['metadata']['names_list']:
+        af['metadata']['names_list'].append('OX')
     for ii, ac in enumerate(af['data']):
-        print(ii, ac, end='\t', flush=True)
-        ac_list = get_uniprot_id_list(seq=af['data'][ac]['seq'], max_id_count=max_id_count)
+        ac_list, ox_set = get_uniprot_id_list(seq=af['data'][ac]['seq'], max_id_count=max_id_count, verbose=verbose)
+        if verbose:
+            print(f"{ii:,}\t{ac}", end='\t', flush=True)
         if 'UniProt' not in af['data'][ac]:
+            af['data'][ac]['UniProt'] = ac_list
+        elif len(af['data'][ac]['UniProt']) == 0:
             af['data'][ac]['UniProt'] = ac_list
         else:
             up0 = af['data'][ac]['UniProt'][0]
@@ -421,24 +426,33 @@ def aff_add_uniprot_ids(af, max_id_count=10):
             ss.remove(up0)
             af['data'][ac]['UniProt'] = [up0] + list(ss)
 
+        if 'OX' not in af['data'][ac]:
+            af['data'][ac]['OX'] = list(ox_set)
+        else:
+            ox0 = af['data'][ac]['OX'][0]
+            ss = set(af['data'][ac]['OX']).union(ox_set)
+            ss.remove(ox0)
+            af['data'][ac]['UniProt'] = [ox0] + list(ss)
 
-def aff_add_other_ids(af, requested_other_ids=None):
+
+def aff_add_other_ids(af, requested_other_ids=None, verbose=False):
     # NCBI RefSeq
     used_set = set()
     for ii, ac0 in enumerate(af['data']):
         if 'UniProt' in af['data'][ac0]:
-            print(f"{ii}\t{ac0}\tother_ids:\t", end='', flush=True)
-            for ac in af['data'][ac0]['UniProt']:
+            for jj, ac in enumerate(af['data'][ac0]['UniProt']):
+                if verbose:
+                    print(f"{ii}/{len(af['data']):,}\t{ac0}\t{jj}/{len(af['data'][ac0]['UniProt']):,}\t{ac}\tother_ids:",
+                          end='\t', flush=True)
                 ret_dict = _get_all_ids(ac)
                 # print('================\t', ac0, ac, ret_dict, flush=True)
                 for _db in ret_dict:
                     if requested_other_ids is not None:
                         if _db not in requested_other_ids:
                             continue
-                    print(f"{_db}\t", end='')
+                    print(f"{_db}", end='\t', flush=True)
                     if len(ret_dict[_db]) < 1:
                         continue
-                    # print('================\t', ac0, _db, ret_dict[_db], flush=True)  # af['data'][ac0]
                     if _db in af['data'][ac0]:
                         ret_dict[_db] = list(set(ret_dict[_db] + af['data'][ac0][_db]))
                     else:
@@ -455,7 +469,14 @@ def aff_add_other_ids(af, requested_other_ids=None):
 
 def _get_all_ids(ac):
     url = f"https://rest.uniprot.org/uniprotkb/{ac}.json"
-    response = requests.get(url)
+    response = None
+    for attempt in range(1, 4):
+        try:
+            response = requests.get(url)
+            break
+        except Exception as e:
+            print(f"Attempt {attempt} failed: {url}")
+
     ret_dict = {}
     if response.ok:
         data = response.json()
@@ -474,9 +495,10 @@ def _get_string_counts(af):
     if af['metadata']['counts'] is None:
         return _msg
     if len(af['metadata']['names_list']) > 0:
-        _msg = _msg + f"# ID Counts:\n#\tID \tAll#\tUnique#"
+        _msg = _msg + f"# ID Counts:\n#\tID \tSeq#\tTotal#\tUnique#"
         for ntg in af['metadata']['names_list']:
-            _msg = _msg + f"\n#\t{ntg}\t{af['metadata']['counts']['names_dict'][ntg]['total']:,}"
+            _msg = _msg + f"\n#\t{ntg}\t{af['metadata']['counts']['names_dict'][ntg]['sequences']:,}"
+            _msg = _msg + f"\t{af['metadata']['counts']['names_dict'][ntg]['total']:,}"
             _msg = _msg + f"\t{af['metadata']['counts']['names_dict'][ntg]['unique']:,}"
             # if ntg == af['metadata']['accession']:
             #     _msg = _msg + "\tAC"
@@ -517,43 +539,58 @@ def _gen_name_counts(af):
     af['metadata']['counts']['names_dict'] = {}
     ntg_set_dict = {}
     for ntg in af['metadata']['names_list']:
-        af['metadata']['counts']['names_dict'][ntg] = {'total': 0, 'unique': 0}
+        cnt = 0
+        af['metadata']['counts']['names_dict'][ntg] = {'sequences': 0,'total': 0, 'unique': 0}
         ntg_set_dict[ntg] = set()
         for ac in af['data']:
             if ntg in af['data'][ac]:
-                # print(ac, af['data'][ac][ntg], flush=True)
                 if len(af['data'][ac][ntg]) > 0:
-                    af['metadata']['counts']['names_dict'][ntg]['total'] += 1
+                    af['metadata']['counts']['names_dict'][ntg]['sequences'] += 1
+                    af['metadata']['counts']['names_dict'][ntg]['total'] += len(af['data'][ac][ntg])
                     ntg_set_dict[ntg] = ntg_set_dict[ntg].union(set(af['data'][ac][ntg]))
+                    cnt += len(af['data'][ac][ntg])
+        print(ntg, cnt)
     for ntg in af['metadata']['names_list']:
         af['metadata']['counts']['names_dict'][ntg]['unique'] = len(ntg_set_dict[ntg])
 
 
 def _get_url(url, **kwargs):
-    response = requests.get(url, **kwargs)
+    response = None
+    for attempt in range(1, 4):
+        try:
+            response = requests.get(url, **kwargs)
+            break
+        except Exception as e:
+            print(f"Attempt {attempt} failed: {url}")
+
     if not response.ok:
         print(response.text)
         return None
-        # response.raise_for_status()
-        # sys.exit()
     return response
 
 
-def get_uniprot_id_list(seq, max_id_count=10):
+def get_uniprot_id_list(seq, max_id_count=10, verbose=False):
     # print(seq)
     ac_list = []
+    ox_set = set()
     checksum = crc64(seq)
     r = _get_url(f"https://rest.uniprot.org/uniparc/search?query=checksum: {checksum}")
     if r is not None:
         data = r.json()
-        # for xx in data["results"][0]['uniParcCrossReferences']:
-            # if 'UniProtKB' in xx['database']:
-            #     ac_list.append(xx['id'])
-        print(len(data["results"][0]['uniProtKBAccessions']), flush=True)
-        for ac in data["results"][0]['uniProtKBAccessions']:
+        if verbose:
+            print(f"{len(data['results'][0]['uniProtKBAccessions']):,}", flush=True)
+        response = None
+        for ac, tx in zip(data["results"][0]['uniProtKBAccessions'], data["results"][0]['commonTaxons']):
             if '.' in ac:
                 continue
-            response = requests.get(f'https://rest.uniprot.org/uniprotkb/{ac}.fasta')
+            url = f'https://rest.uniprot.org/uniprotkb/{ac}.fasta'
+            for attempt in range(1, 4):
+                try:
+                    response = requests.get(url)
+                    break
+                except Exception as e:
+                    print(f"Attempt {attempt} failed: {url}")
+
             if response.ok:
                 r_seq = ''
                 for ss in response.text.split('\n')[1:]:
@@ -561,9 +598,10 @@ def get_uniprot_id_list(seq, max_id_count=10):
                         r_seq = r_seq + ss
                 if r_seq == seq:
                     ac_list.append(ac)
+                    ox_set.add(tx['commonTaxonId'])
                 if len(ac_list) >= max_id_count:
                     break
-    return ac_list
+    return ac_list, ox_set
 
 
 
