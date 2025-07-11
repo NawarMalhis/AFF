@@ -413,9 +413,11 @@ def aff_add_uniprot_ids(af, max_id_count=10, verbose=False):
     if 'OX' not in af['metadata']['names_list']:
         af['metadata']['names_list'].append('OX')
     for ii, ac in enumerate(af['data']):
-        ac_list, ox_set = get_uniprot_id_list(seq=af['data'][ac]['seq'], max_id_count=max_id_count, verbose=verbose)
         if verbose:
             print(f"{ii:,}\t{ac}", end='\t', flush=True)
+        ac_list = get_uniprot_id_list(seq=af['data'][ac]['seq'], max_id_count=max_id_count, verbose=verbose)
+        # if verbose and len(ac_list) > 0:
+        #     print(ac_list[0], list(ox_set)[0])
         if 'UniProt' not in af['data'][ac]:
             af['data'][ac]['UniProt'] = ac_list
         elif len(af['data'][ac]['UniProt']) == 0:
@@ -426,17 +428,16 @@ def aff_add_uniprot_ids(af, max_id_count=10, verbose=False):
             ss.remove(up0)
             af['data'][ac]['UniProt'] = [up0] + list(ss)
 
-        if 'OX' not in af['data'][ac]:
-            af['data'][ac]['OX'] = list(ox_set)
-        else:
-            ox0 = af['data'][ac]['OX'][0]
-            ss = set(af['data'][ac]['OX']).union(ox_set)
-            ss.remove(ox0)
-            af['data'][ac]['UniProt'] = [ox0] + list(ss)
+        # if 'OX' not in af['data'][ac]:
+        #     af['data'][ac]['OX'] = list(ox_set)
+        # else:
+        # ox0 = af['data'][ac]['OX'][0]
+        # ss = set(af['data'][ac]['OX']).union(ox_set)
+        # ss.remove(ox0)
+        # af['data'][ac]['UniProt'] = [ox0] + list(ss)
 
 
 def aff_add_other_ids(af, requested_other_ids=None, verbose=False):
-    # NCBI RefSeq
     used_set = set()
     for ii, ac0 in enumerate(af['data']):
         if 'UniProt' in af['data'][ac0]:
@@ -444,21 +445,26 @@ def aff_add_other_ids(af, requested_other_ids=None, verbose=False):
                 if verbose:
                     print(f"{ii}/{len(af['data']):,}\t{ac0}\t{jj}/{len(af['data'][ac0]['UniProt']):,}\t{ac}\tother_ids:",
                           end='\t', flush=True)
+                if '.' in ac:
+                    ac = ac.split('.')[0]
                 ret_dict = _get_all_ids(ac)
-                # print('================\t', ac0, ac, ret_dict, flush=True)
                 for _db in ret_dict:
                     if requested_other_ids is not None:
-                        if _db not in requested_other_ids:
+                        if _db not in requested_other_ids and _db != 'OX':
                             continue
-                    print(f"{_db}", end='\t', flush=True)
+                    if verbose:
+                        print(f"{_db}", end='\t', flush=True)
                     if len(ret_dict[_db]) < 1:
                         continue
                     if _db in af['data'][ac0]:
-                        ret_dict[_db] = list(set(ret_dict[_db] + af['data'][ac0][_db]))
+                        af['data'][ac0][_db] = list(set(ret_dict[_db] + af['data'][ac0][_db]))
+                        # if _db == 'OX':
+                        #     print(ret_dict[_db])
                     else:
                         af['data'][ac0][_db] = ret_dict[_db]
                     used_set.add(_db)
-                print(flush=True)
+                if verbose:
+                    print(flush=True)
     for _db in used_set:
         if _db not in af['metadata']['names_list']:
             af['metadata']['names_list'].append(_db)
@@ -480,6 +486,13 @@ def _get_all_ids(ac):
     ret_dict = {}
     if response.ok:
         data = response.json()
+        _taxa = data.get('organism')
+        if _taxa:
+            if 'taxonId' in _taxa:
+                ox = _taxa['taxonId']
+                ret_dict['OX'] = [ox]
+        # else:
+        #     print(f"============= None Taxa\t{ac}", flush=True)
         for xref in data.get("uniProtKBCrossReferences", []):
             _db = xref["database"]
             if _db not in ret_dict:
@@ -576,26 +589,29 @@ def _get_url(url, **kwargs):
 
 
 def get_uniprot_id_list(seq, max_id_count=10, verbose=False):
-    # print(seq)
-    ac_list = []
-    ox_set = set()
+    ac_list2 = [[], []]
     checksum = crc64(seq)
     r = _get_url(f"https://rest.uniprot.org/uniparc/search?query=checksum: {checksum}")
     if r is not None:
         data = r.json()
         if verbose:
-            print(f"{len(data['results'][0]['uniProtKBAccessions']):,}", flush=True)
+            print(f"{len(data['results'][0]['uniProtKBAccessions']):,}", end='', flush=True)
         response = None
-        for ac, tx in zip(data["results"][0]['uniProtKBAccessions'], data["results"][0]['commonTaxons']):
+        for ac in data["results"][0]['uniProtKBAccessions']:  # , data["results"][0]['commonTaxons']):
+            l_pos = 0
             if '.' in ac:
-                continue
-            url = f'https://rest.uniprot.org/uniprotkb/{ac}.fasta'
+                _vv = ac.split('.')[1]
+                _ac = ac.split('.')[0]
+                url = f"https://rest.uniprot.org/unisave/{_ac}?format=fasta&versions={_vv}"
+                l_pos = 1
+            else:
+                url = f'https://rest.uniprot.org/uniprotkb/{ac}.fasta'
             for attempt in range(1, 4):
                 try:
                     response = requests.get(url)
                     break
                 except Exception as e:
-                    print(f"Attempt {attempt} failed: {url}")
+                    print(f"Attempt {attempt} failed: {url}", flush=True)
 
             if response.ok:
                 r_seq = ''
@@ -603,11 +619,19 @@ def get_uniprot_id_list(seq, max_id_count=10, verbose=False):
                     if len(ss) > 0:
                         r_seq = r_seq + ss
                 if r_seq == seq:
-                    ac_list.append(ac)
-                    ox_set.add(tx['commonTaxonId'])
-                if len(ac_list) >= max_id_count:
+                    ac_list2[l_pos].append(ac)
+                else:
+                    if verbose:
+                        print('#', end='')
+                if len(ac_list2[0]) >= max_id_count:
                     break
-    return ac_list, ox_set
+    if len(ac_list2[0]) > 0:
+        ac_list = ac_list2[0]
+    else:
+        ac_list = ac_list2[1]
+    if verbose:
+        print(f"\t{len(ac_list2[0])}\t{len(ac_list2[1])}\t{ac_list}", flush=True)
+    return ac_list
 
 
 
