@@ -431,42 +431,6 @@ def aff_add_uniprot_ids(af, max_id_count=10, verbose=False):
             af['data'][ac]['UniProt'] = [up0] + list(ss)
 
 
-def aff_add_other_ids(af, requested_other_ids=None, verbose=False):
-    used_set = set()
-    for ii, ac0 in enumerate(af['data']):
-        if 'UniProt' in af['data'][ac0]:
-            for jj, ac in enumerate(af['data'][ac0]['UniProt']):
-                if verbose:
-                    print(f"{ii}/{len(af['data']):,}\t{ac0}\t{jj}/{len(af['data'][ac0]['UniProt']):,}\t{ac}\tother_ids:",
-                          end='\t', flush=True)
-                else:
-                    print(f"{ii}/{len(af['data']):,}\t{ac0}\t{jj}/{len(af['data'][ac0]['UniProt']):,}\t{ac}")
-                if '.' in ac:
-                    ac = ac.split('.')[0]
-                ret_dict = _get_all_ids(ac)
-                for _db in ret_dict:
-                    if requested_other_ids is not None:
-                        if _db not in requested_other_ids and _db != 'OX':
-                            continue
-                    if verbose:
-                        print(f"{_db}", end='\t', flush=True)
-                    if len(ret_dict[_db]) < 1:
-                        continue
-                    if _db in af['data'][ac0]:
-                        af['data'][ac0][_db] = list(set(ret_dict[_db] + af['data'][ac0][_db]))
-                    else:
-                        af['data'][ac0][_db] = ret_dict[_db]
-                    used_set.add(_db)
-                if verbose:
-                    print(flush=True)
-    for _db in used_set:
-        if _db not in af['metadata']['names_list']:
-            af['metadata']['names_list'].append(_db)
-        for ac in af['data']:
-            if _db not in af['data'][ac]:
-                af['data'][ac][_db] = []
-
-
 def _get_all_ids(ac):
     url = f"https://rest.uniprot.org/uniprotkb/{ac}.json"
     response = None
@@ -605,10 +569,51 @@ def _process_up_obsolete(in_list, seq, max_id_count=10, verbose=False):
 
 
 def _process_up(in_list, seq, ids):
+    for ac in in_list:
+        url = f'https://rest.uniprot.org/uniprotkb/{ac}.fasta'
+        response = _get_url_response(url)
+
     pass
 
+def aff_add_other_ids(af, requested_other_ids=None, verbose=False):
+    used_set = set()
+    for ii, ac0 in enumerate(af['data']):
+        if 'UniProt' in af['data'][ac0]:
+            for jj, ac in enumerate(af['data'][ac0]['UniProt']):
+                if verbose:
+                    print(f"{ii}/{len(af['data']):,}\t{ac0}\t{jj}/{len(af['data'][ac0]['UniProt']):,}\t{ac}\tother_ids:",
+                          end='\t', flush=True)
+                else:
+                    print(f"{ii}/{len(af['data']):,}\t{ac0}\t{jj}/{len(af['data'][ac0]['UniProt']):,}\t{ac}")
+                if '.' in ac:
+                    ac = ac.split('.')[0]
+                ret_dict = _get_all_ids(ac)
+                for _db in ret_dict:
+                    if requested_other_ids is not None:
+                        if _db not in requested_other_ids and _db != 'OX':
+                            continue
+                    if verbose:
+                        print(f"{_db}", end='\t', flush=True)
+                    if len(ret_dict[_db]) < 1:
+                        continue
+                    if _db in af['data'][ac0]:
+                        af['data'][ac0][_db] = list(set(ret_dict[_db] + af['data'][ac0][_db]))
+                    else:
+                        af['data'][ac0][_db] = ret_dict[_db]
+                    used_set.add(_db)
+                if verbose:
+                    print(flush=True)
+    for _db in used_set:
+        if _db not in af['metadata']['names_list']:
+            af['metadata']['names_list'].append(_db)
+        for ac in af['data']:
+            if _db not in af['data'][ac]:
+                af['data'][ac][_db] = []
+
+
+
 def get_uniprot_id_list(seq, ids, max_id_count=10, verbose=False):
-    ac_list_2 = [[], []]
+    ac_list2 = [[], []]
     if 'UniProt' not in ids:
         ids['UniProt'] = []
 
@@ -620,30 +625,20 @@ def get_uniprot_id_list(seq, ids, max_id_count=10, verbose=False):
             print(f"{len(data['results'][0]['uniProtKBAccessions']):,}", end='', flush=True)
         response = None
         for ac in data["results"][0]['uniProtKBAccessions']:  # , data["results"][0]['commonTaxons']):
-            l_pos = 0
             if '.' in ac:
-                ac_list_2[1].append(ac)
+                ac_list2[1].append(ac)
             else:
-                ac_list_2[0].append(ac)
+                ac_list2[0].append(ac)
         if verbose:
-            print(f"\t{len(ac_list_2[0])}\t{len(ac_list_2[1])}", end='', flush=True)
+            print(f"\t{len(ac_list2[0])}\t{len(ac_list2[1])}", end='', flush=True)
 
-        _process_up(in_list=[1], seq=seq, ids)
-
-        for l_p in [0, 1]:
-            for ac in ac_list_2[l_p]:
-                if l_p == 1:
-                    # ac_list = _process_obsolete(o_ac)
-                else:
-                    url = f'https://rest.uniprot.org/uniprotkb/{ac}.fasta'
-                response = _get_url_response(url)
-
+        _process_up(in_list=[0], ids=ids, seq=seq)
         if len(ids['UniProt']) == 0:
             ids['UniProt'] = _process_up_obsolete(in_list=[1], seq=seq, verbose=True)
 
     if verbose:
-        print(f"\t{len(ac_list)}\t{ac_list_2[1]}", flush=True)
-    return ac_list
+        print(f"\t{len(ids['UniProt'])}", flush=True)
+    return
 
 
 
