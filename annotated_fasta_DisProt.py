@@ -89,18 +89,19 @@ def aff_process_disprot(release, dp_path, verbose=False):
     if verbose:
         print(f"json clean size:\t{len(data['data']):,}")
 
-    names_list = ['DisProt', 'UniProt', 'OX']
+    database_list = ['DisProt', 'UniProt', 'OX']
     disprot = annotated_fasta(data_name=f'DisProt release_{release}, annotations include descendants',
-                              names_list=names_list, accession='DisProt')
+                              database_list=database_list, accession='DisProt')
     disprot['metadata']['tags_dict'] = tags_names_dict
 
     for dd in data['data']:
         ac = dd['disprot_id']
-        disprot['data'][ac] = {'DisProt': [ac], 'UniProt': [dd['acc']], 'OX': [f"{dd['ncbi_taxon_id']}"],
-                               'seq': dd['sequence']}
+        disprot['data'][ac] = {'seq': dd['sequence'], 'tags': {}, 'scores': {},
+                               'databases': {'DisProt': [ac], 'UniProt': [dd['acc']], 'OX': [f"{dd['ncbi_taxon_id']}"]}
+                               }
 
         for tid in tags_list:
-            disprot['data'][ac][f"lst_{tid}"] = ['0'] * len(disprot['data'][ac]['seq'])
+            disprot['data'][ac]['tags'][f"lst_{tid}"] = ['0'] * len(disprot['data'][ac]['seq'])
         for rg in dd['regions']:
             tid = rg['term_id']
             if tid in tags_sets_dict:
@@ -108,7 +109,7 @@ def aff_process_disprot(release, dp_path, verbose=False):
                 ed = int(rg['end'])
                 for tag in tags_sets_dict[tid]:
                     for i in range(st, ed):
-                        disprot['data'][ac][f"lst_{tag}"][i] = '1'
+                        disprot['data'][ac]['tags'][f"lst_{tag}"][i] = '1'
 
     json_file = f"{dp_path}JSON/DisProt release_{release} with_ambiguous_evidences.json"
     with open(json_file, 'r') as fin:
@@ -126,16 +127,16 @@ def aff_process_disprot(release, dp_path, verbose=False):
                 ed = int(rg['end'])
                 for tag in tags_sets_dict[tid]:
                     for i in range(st, ed):
-                        if disprot['data'][ac][f"lst_{tag}"][i] == '0':
-                            disprot['data'][ac][f"lst_{tag}"][i] = '-'
+                        if disprot['data'][ac]['tags'][f"lst_{tag}"][i] == '0':
+                            disprot['data'][ac]['tags'][f"lst_{tag}"][i] = '-'
 
         for tid in tags_list:
-            disprot['data'][ac][tid] = ''.join(disprot['data'][ac][f"lst_{tid}"])
+            disprot['data'][ac]['tags'][tid] = ''.join(disprot['data'][ac]['tags'][f"lst_{tid}"])
 
     aff_remove_no_class_tag(af=disprot, tag='IDR', cl='1')
 
     out_file = f"{dp_path}DisProt_{release}.af"
-    aff_save2(f_name=out_file, af=disprot)
+    aff_save3(f_name=out_file, af=disprot)
 
 
 def _load_tags_sets_dict(dp_path, tags_list):
