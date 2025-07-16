@@ -201,9 +201,9 @@ def aff_load3(in_file: str, data_name: str='Data has no name'):  # , _mark=None
                     if 'Tags Counts:' in line:
                         _id_counts = False
                         continue
-                    if len(_lst) < 4:
+                    if len(_lst) < 5:
                         continue
-                    if len(_lst) == 5:
+                    if len(_lst) == 6:
                         accession = _lst[1]
                     database_list.append(_lst[1])
                 continue
@@ -376,13 +376,13 @@ def aff_save3(af, f_name: str, header_top: str =None, header_bottom: str =None):
         print("#", file=fout)
         print("# Format:", file=fout)
         print("#\t>accession", file=fout, end='')
-        for n_tg in af['metadata']['names_list']:
-            print(f"|{n_tg}={n_tg}_ID", file=fout, end='')
-        print(file=fout)
-        print("#\tAmino acid sequence", file=fout)
+        for _db in af['metadata']['database_list']:
+            print(f"|{_db}={_db}_ID", file=fout, end='')
+        print("\n#\tAmino acid sequence", file=fout)
         for tg in af['metadata']['tags_dict']:
             print(f"#\t{tg}\t{af['metadata']['tags_dict'][tg]}", file=fout)
         print("#", file=fout)
+        #  ===========================================================================
         aff_gen_counts(af)
         str_counts = _get_string_counts(af)
         print(str_counts, file=fout)
@@ -396,7 +396,7 @@ def aff_save3(af, f_name: str, header_top: str =None, header_bottom: str =None):
         for ac in af['data']:
             ac_o = ac
             for tg in af['data'][ac]:
-                if tg in af['metadata']['names_list']:
+                if tg in af['metadata']['database_list']:
                     if len(af['data'][ac][tg]) > 0:
                         ac_o = f"{ac_o}|{tg}={af['data'][ac][tg][0]}"
                         if len(af['data'][ac][tg]) > 1:
@@ -533,28 +533,30 @@ def aff_add_tag(af, tag: str):
         print(f"{tag} exist in af", flush=True)
 
 
-def aff_add_uniprot_ids(af, max_id_count=10, verbose=False):
-    if 'UniProt' not in af['metadata']['names_list']:
-        af['metadata']['names_list'].append('UniProt')
-    if 'OX' not in af['metadata']['names_list']:
-        af['metadata']['names_list'].append('OX')
+def aff_add_uniprot_ids(af, requested_databases=None, max_id_count=10, verbose=False):
+    if 'UniProt' not in af['metadata']['database_list']:
+        af['metadata']['database_list'].append('UniProt')
+    if 'OX' not in af['metadata']['database_list']:
+        af['metadata']['database_list'].append('OX')
     for ii, ac in enumerate(af['data']):
         if verbose:
-            print(f"{ii:,}\t{ac}", end='\t', flush=True)
+            print(f"{ii:,}\t{ac}\t{list(af['data'][ac].keys())}", end='\t', flush=True)
         else:
-            print(f"{ii:,}\t{ac}", flush=True)
-        ac_list = aff_get_seq_databases(seq=af['data'][ac]['seq'], max_id_count=max_id_count, verbose=verbose)
+            print(f"{ii:,}\t{ac}\t{list(af['data'][ac].keys())}", flush=True)
+        seq = af['data'][ac]['seq']
+        # af, ac, requested_databases=None, max_id_count=10, verbose=False
+        aff_get_seq_databases(af=af, ac=ac, max_id_count=max_id_count, verbose=verbose)
         # if verbose and len(ac_list) > 0:
         #     print(ac_list[0], list(ox_set)[0])
-        if 'UniProt' not in af['data'][ac]:
-            af['data'][ac]['UniProt'] = ac_list
-        elif len(af['data'][ac]['UniProt']) == 0:
-            af['data'][ac]['UniProt'] = ac_list
+        if 'UniProt' not in af['data'][ac]['databases']:
+            af['data'][ac]['databases']['UniProt'] = ac_list
+        elif len(af['data'][ac]['databases']['UniProt']) == 0:
+            af['data'][ac]['databases']['UniProt'] = ac_list
         else:
-            up0 = af['data'][ac]['UniProt'][0]
-            ss = set(af['data'][ac]['UniProt'] + ac_list)
+            up0 = af['data'][ac]['databases']['UniProt'][0]
+            ss = set(af['data'][ac]['databases']['UniProt'] + ac_list)
             ss.remove(up0)
-            af['data'][ac]['UniProt'] = [up0] + list(ss)
+            af['data'][ac]['databases']['UniProt'] = [up0] + list(ss)
 
 
 def _get_all_ids(ac):
@@ -591,12 +593,12 @@ def _get_string_counts(af):
     _msg = ''
     if af['metadata']['counts'] is None:
         return _msg
-    if len(af['metadata']['names_list']) > 0:
+    if len(af['metadata']['database_list']) > 0:
         _msg = _msg + f"# ID Counts:\n#\tID \tSeq#\tTotal#\tUnique#"
-        for ntg in af['metadata']['names_list']:
-            _msg = _msg + f"\n#\t{ntg}\t{af['metadata']['counts']['names_dict'][ntg]['sequences']:,}"
-            _msg = _msg + f"\t{af['metadata']['counts']['names_dict'][ntg]['total']:,}"
-            _msg = _msg + f"\t{af['metadata']['counts']['names_dict'][ntg]['unique']:,}"
+        for ntg in af['metadata']['database_list']:
+            _msg = _msg + f"\n#\t{ntg}\t{af['metadata']['counts']['database_dict'][ntg]['sequences']:,}"
+            _msg = _msg + f"\t{af['metadata']['counts']['database_dict'][ntg]['total']:,}"
+            _msg = _msg + f"\t{af['metadata']['counts']['database_dict'][ntg]['unique']:,}"
             # if ntg == af['metadata']['accession']:
             #     _msg = _msg + "\tAC"
         _msg = _msg + "\n#\n"
@@ -639,22 +641,22 @@ def _gen_tag_counts(af):
 def _gen_name_counts(af):
     if af['metadata']['counts'] is None:
         af['metadata']['counts'] = {}
-    af['metadata']['counts']['names_dict'] = {}
+    af['metadata']['counts']['database_dict'] = {}
     ntg_set_dict = {}
-    for ntg in af['metadata']['names_list']:
+    for ntg in af['metadata']['database_list']:
         cnt = 0
-        af['metadata']['counts']['names_dict'][ntg] = {'sequences': 0,'total': 0, 'unique': 0}
+        af['metadata']['counts']['database_dict'][ntg] = {'sequences': 0,'total': 0, 'unique': 0}
         ntg_set_dict[ntg] = set()
         for ac in af['data']:
-            if ntg in af['data'][ac]:
-                if len(af['data'][ac][ntg]) > 0:
-                    af['metadata']['counts']['names_dict'][ntg]['sequences'] += 1
-                    af['metadata']['counts']['names_dict'][ntg]['total'] += len(af['data'][ac][ntg])
-                    ntg_set_dict[ntg] = ntg_set_dict[ntg].union(set(af['data'][ac][ntg]))
-                    cnt += len(af['data'][ac][ntg])
+            if ntg in af['data'][ac]['databases']:
+                if len(af['data'][ac]['databases'][ntg]) > 0:
+                    af['metadata']['counts']['database_dict'][ntg]['sequences'] += 1
+                    af['metadata']['counts']['database_dict'][ntg]['total'] += len(af['data'][ac]['databases'][ntg])
+                    ntg_set_dict[ntg] = ntg_set_dict[ntg].union(set(af['data'][ac]['databases'][ntg]))
+                    cnt += len(af['data'][ac]['databases'][ntg])
         # print(ntg, cnt)
-    for ntg in af['metadata']['names_list']:
-        af['metadata']['counts']['names_dict'][ntg]['unique'] = len(ntg_set_dict[ntg])
+    for ntg in af['metadata']['database_list']:
+        af['metadata']['counts']['database_dict'][ntg]['unique'] = len(ntg_set_dict[ntg])
 
 
 def _get_url_response(url, **kwargs):
@@ -697,7 +699,7 @@ def _process_up_obsolete(in_up_list, seq, max_up_count=10, verbose=False):
 # new func
 def _process_uniprot(in_up_list, seq, db_dict, requested_databases=None, max_up_count=10, verbose=False):
     for ac in in_up_list:
-        url = f'https://https://rest.uniprot.org/uniprotkb/{ac}.json'
+        url = f'https://rest.uniprot.org/uniprotkb/{ac}.json'
         response = _get_url_response(url)
         if response is None:
             continue
@@ -806,11 +808,11 @@ def aff_get_seq_databases(af, ac, requested_databases=None, max_id_count=10, ver
         data = response.json()
         if verbose:
             print(f"{len(data['results'][0]['uniProtKBAccessions']):,}", end='', flush=True)
-        for ac in data["results"][0]['uniProtKBAccessions']:  # , data["results"][0]['commonTaxons']):
-            if '.' in ac:
-                ac_list2[1].append(ac)
+        for _ac in data["results"][0]['uniProtKBAccessions']:  # , data["results"][0]['commonTaxons']):
+            if '.' in _ac:
+                ac_list2[1].append(_ac)
             else:
-                ac_list2[0].append(ac)
+                ac_list2[0].append(_ac)
         if verbose:
             print(f"\t{len(ac_list2[0])}\t{len(ac_list2[1])}", end='', flush=True)
     else:
