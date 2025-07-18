@@ -161,6 +161,29 @@ def aff_load2(in_file: str, data_name: str='Data has no name'):  # , _mark=None
 
 
 # new func
+def aff_clear_databases(af, add_acc=False):
+    up_old = 'UniProt' in af['metadata']['database_list']
+    af['metadata']['database_list'] = []
+    if add_acc:
+        af['metadata']['database_list'].append('Fasta')
+    if up_old:
+        af['metadata']['database_list'].append('UniProt')
+
+    for ac in af['data']:
+        up0 = None
+        if up_old:
+            if len(af['data'][ac]['databases']['UniProt']) > 0:
+                up0 = af['data'][ac]['databases']['UniProt'][0]
+        af['data'][ac]['databases'] = {}
+        if add_acc:
+            af['data'][ac]['databases']['Fasta'] = [ac]
+        if up_old:
+            af['data'][ac]['databases']['UniProt'] = []
+            if up0:
+                af['data'][ac]['databases']['UniProt'].append(up0)
+
+
+# new func
 def aff_load3(in_file: str, data_name: str='Data has no name'):  # , _mark=None
     af_sequences = {}
     tags_dict = {}
@@ -177,7 +200,8 @@ def aff_load3(in_file: str, data_name: str='Data has no name'):  # , _mark=None
                 continue
             if line[0] == '#':
                 if 'Data Name:' in line:
-                    data_name = line.split('\t')[1]
+                    if data_name != 'Data has no name':
+                        data_name = line.split('\t')[1]
                 if 'Amino acid sequence' in line:
                     _more_tags = True
                     continue
@@ -188,8 +212,11 @@ def aff_load3(in_file: str, data_name: str='Data has no name'):  # , _mark=None
                             info = _lst[2]
                         else:
                             info = 'Annotation'
-                        tags_dict[_lst[1]] = info
-                        tags_list.append(_lst[1])
+                        _tg = _lst[1]
+                        if _tg[-1] == ':':
+                            _tg = _tg[:-1]
+                        tags_dict[_tg] = info
+                        tags_list.append(_tg)
                     if 'ID Counts:' in line:
                         # print("ID counts", flush=True)
                         _more_tags = False
@@ -199,7 +226,7 @@ def aff_load3(in_file: str, data_name: str='Data has no name'):  # , _mark=None
                     _lst = line.split()
                     if 'Unique#' in line:
                         continue
-                    if 'Tags Counts:' in line:
+                    if 'Tag Counts:' in line:
                         _id_counts = False
                         continue
                     if len(_lst) < 5:
@@ -381,7 +408,7 @@ def aff_save3(af, f_name: str, header_top: str =None, header_bottom: str =None):
             print(f"|{_db}={_db}_ID(s)", file=fout, end='')
         print("\n#\tAmino acid sequence", file=fout)
         for tg in af['metadata']['tags_dict']:
-            print(f"#\t{tg}\t{af['metadata']['tags_dict'][tg]}", file=fout)
+            print(f"#\t{tg}:\t{af['metadata']['tags_dict'][tg]}", file=fout)
         print("#", file=fout)
         aff_gen_counts(af)
         str_counts = _get_string_counts(af)
@@ -536,18 +563,22 @@ def aff_add_tag(af, tag: str):
 
 
 # new func
-def aff_add_databases(af, requested_databases=None, max_id_count=10, verbose=False):
+def aff_add_databases(af, requested_databases=None, max_id_count=10, d_file=None, verbose=False):
+    fout = None
+    if d_file:
+        fout = open(d_file, 'w')
     if 'UniProt' not in af['metadata']['database_list']:
         af['metadata']['database_list'].append('UniProt')
     if 'OX' not in af['metadata']['database_list']:
         af['metadata']['database_list'].append('OX')
+
     for ii, ac in enumerate(af['data']):
         if verbose:
             print(f"{ii:,}\t{ac}", end='\t', flush=True)  # \t{list(af['data'][ac].keys())}
         else:
             print(f"{ii:,}\t{ac}", flush=True)
         aff_get_seq_databases(af=af, ac=ac, requested_databases=requested_databases,
-                              max_id_count=max_id_count, verbose=verbose)
+                              max_id_count=max_id_count, fout=fout, verbose=verbose)
 
 
 def _get_all_ids(ac):
@@ -652,10 +683,12 @@ def _gen_database_counts(af):
 
 def _get_url_response(url, **kwargs):
     response = None
-    for attempt in range(1, 4):
+    for attempt in range(1, 11):
         try:
             response = requests.get(url, **kwargs)
-            break
+            if response is not None:
+                break
+            else: print(f"Attempt {attempt} failed, response is None:\t{url}")
         except Exception as e:
             print(f"Attempt {attempt} failed: {url}")
 
@@ -689,11 +722,12 @@ def _process_up_obsolete(in_up_list, seq, max_up_count=10, verbose=False):
 
 # new func
 def _process_uniprot_list(in_up_list, seq, db_dict, md_db_list, requested_databases=None, max_up_count=10,
-                          verbose=False):
+                          fout=None, verbose=False):
     for ac in in_up_list:
         url = f'https://rest.uniprot.org/uniprotkb/{ac}.json'
         response = _get_url_response(url)
         if response is None:
+            print("_process_uniprot_list, response is None")
             continue
         data = response.json()
 
@@ -711,8 +745,10 @@ def _process_uniprot_list(in_up_list, seq, db_dict, md_db_list, requested_databa
         # ADD ac
         if ac not in db_dict['UniProt']:
             db_dict['UniProt'].append(ac)
-
+        tsv_out = {}
+        # if fout:
         # ADD ox
+        ox = ''
         _taxa = data.get('organism')
         if _taxa:
             if 'taxonId' in _taxa:
@@ -724,14 +760,26 @@ def _process_uniprot_list(in_up_list, seq, db_dict, md_db_list, requested_databa
         for xref in data.get("uniProtKBCrossReferences", []):
             _db = xref["database"]
             if requested_databases is None or _db in requested_databases:
+                if fout:
+                    if _db not in tsv_out:
+                        tsv_out[_db] = []
+                    tsv_out[_db].append(xref["id"])
+
                 if _db not in db_dict:
                     db_dict[_db] = []
+
                 if xref["id"] not in db_dict[_db]:
                     db_dict[_db].append(xref["id"])
                     if _db not in md_db_list:
                         md_db_list.append(_db)
         if len(db_dict['UniProt']) >= max_up_count:
             break
+        if fout:
+            print(f"{ac}|OX={ox}", end='', file=fout)
+            for _db in tsv_out:
+                print(f"{_db}={ox}", end='', file=fout)
+                tsv_out[_db].append(xref["id"])
+
     return
 
 
@@ -773,7 +821,7 @@ def aff_get_databases(af, requested_other_ids=None, max_id_count=10, verbose=Fal
 
 
 
-def aff_get_seq_databases(af, ac, requested_databases=None, max_id_count=10, verbose=False):
+def aff_get_seq_databases(af, ac, requested_databases=None, max_id_count=10, fout=None, verbose=False):
     seq = af['data'][ac]['seq']
     ac_list2 = [[], []]
 
@@ -801,10 +849,17 @@ def aff_get_seq_databases(af, ac, requested_databases=None, max_id_count=10, ver
 
     _process_uniprot_list(in_up_list=ac_list2[0], db_dict=af['data'][ac]['databases'],
                           md_db_list=af['metadata']['database_list'], max_up_count=max_id_count,
-                          requested_databases=requested_databases, seq=seq, verbose=verbose)
+                          requested_databases=requested_databases, seq=seq, fout=fout, verbose=verbose)
     if len(af['data'][ac]['databases']['UniProt']) == 0:
         af['data'][ac]['databases']['UniProt'] = _process_up_obsolete(in_up_list=ac_list2[1], seq=seq,
                                                                       max_up_count=max_id_count,verbose=verbose)
+    if len(af['data'][ac]['databases']['UniProt']) > 1:
+        up_list = af['data'][ac]['databases']['UniProt']
+        for up in up_list:
+            if '-' in up:
+                up0 = up.split('-')[0]
+                if up0 in af['data'][ac]['databases']['UniProt']:
+                    af['data'][ac]['databases']['UniProt'].remove(up)
 
     if verbose:
         print(f"\t{len(af['data'][ac]['databases']['UniProt'])}", flush=True)
