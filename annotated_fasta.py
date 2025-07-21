@@ -10,8 +10,8 @@ def annotated_fasta(data_name: str='Data has no Name', database_list: list=None,
     if accession is not None:
         if accession not in database_list:
             database_list.append(accession)
-    return {'data': {}, 'metadata': {'tags_dict': {}, 'database_list': database_list, 'counts': None,
-                                     'accession': accession, 'data_name': data_name}}
+    return {'data': {}, 'metadata': {'tags_dict': {}, 'tags_list': [], 'database_list': database_list,
+                                     'counts': None, 'accession': accession, 'data_name': data_name}}
 
 
 def aff_load0(in_file: str, data_name: str='Data has no Name', accession: str=None):  # , _mark=None
@@ -419,7 +419,7 @@ def aff_save3(af, f_name: str, header_top: str =None, header_bottom: str =None):
         for _db in af['metadata']['database_list']:
             print(f"|{_db}={_db}_ID(s)", file=fout, end='')
         print("\n#\tAmino acid sequence", file=fout)
-        for tg in af['metadata']['tags_dict']:
+        for tg in af['metadata']['tags_list']:
             print(f"#\t{tg}:\t{af['metadata']['tags_dict'][tg]}", file=fout)
         print("#", file=fout)
         aff_gen_counts(af)
@@ -433,6 +433,7 @@ def aff_save3(af, f_name: str, header_top: str =None, header_bottom: str =None):
                 print(f"BAD header_bottom:\t{header_bottom}", flush=True)
         print('#', file=fout)
         for ac in af['data']:
+            # print(ac, list(af['data'][ac]['tags'].keys()))
             ac_o = ac
             for tg in af['metadata']['database_list']:
                 if tg in af['data'][ac]['databases']:
@@ -443,7 +444,7 @@ def aff_save3(af, f_name: str, header_top: str =None, header_bottom: str =None):
                             for xx in af['data'][ac]['databases'][tg][1:]:
                                 ac_o = f"{ac_o};{xx}"
             print(f">{ac_o}\n{af['data'][ac]['seq']}", file=fout)
-            for tg in af['metadata']['tags_dict']:
+            for tg in af['metadata']['tags_list']:
                 print(f"{af['data'][ac]['tags'][tg]}", file=fout)
     return
 
@@ -645,7 +646,7 @@ def _get_string_counts(af):
         #     _msg = _msg + "\tAC"
     _msg = _msg + "\n#\n"
     _msg = _msg + "# Tag Counts:\n#\ttag\tSeq#\tSeg#\t'0'\t'1'\t'-'"
-    for tg in af['metadata']['tags_dict']:
+    for tg in af['metadata']['tags_list']:
         _msg = _msg + f"\n#\t{tg}"
         for cc in ['seq', 'seg', '0', '1', '-']:  # af['metadata']['counts']['tags_dict'][tg]:
             _msg = _msg + f"\t{af['metadata']['counts']['tags_dict'][tg][cc]:,}"

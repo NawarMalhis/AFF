@@ -25,9 +25,13 @@ def aff_mdb_fasta_to_af(mdb_file_list: list=None, tag_list: list=None, quality_l
                     lst = line[1:].split('|')
                     if len(lst) >= 2:
                         if lst[1] == 'sequence':
-                            ac_seq = lst[0]
-                            af['data'][ac_seq] = {'seq': '', 'tags': {}, 'databases': {}, 'scores': {}}
-                            seq_next = True
+                            if lst[0] not in af['data']:
+                                ac_seq = lst[0]
+                                af['data'][ac_seq] = {'seq': '', 'tags': {}, 'databases': {}, 'scores': {}}
+                                seq_next = True
+                            else:
+                                seq_next = False
+                            continue
                         else:
                             seq_next = False
                             t_lst = lst[1].split('-')
@@ -36,15 +40,20 @@ def aff_mdb_fasta_to_af(mdb_file_list: list=None, tag_list: list=None, quality_l
                                 continue
                             else:
                                 tag = ''
-                    else:
-                        ac_seq = ''
-                        tag = ''
+                else:
+                    if seq_next:
+                        af['data'][ac_seq]['seq'] = line
+                        continue
+                    if len(tag) > 0 and len(ac_seq) > 0:
+                        af['data'][ac_seq]['tags'][tag] = line
+                        if tag not in af['metadata']['tags_dict']:
+                            af['metadata']['tags_dict'][tag] = 'MobiDB tag'
+                            af['metadata']['tags_list'].append(tag)
+    for ac in af['data']:
+        for tg in af['metadata']['tags_list']:
+            if tg not in af['data'][ac]['tags']:
+                af['data'][ac]['tags'][tg] = '-' * len(af['data'][ac]['seq'])
 
-                if ac_seq == '' or tag == '':
-                    continue
-
-                if seq_next:
-                    af['data'][ac_seq]['seq'] = line
-                    continue
-                af['data'][ac_seq]['tags'][tag] = line
+    af['metadata']['tags_list'].sort()
+    # print(af['metadata']['tags_list'], flush=True)
     return af
