@@ -502,33 +502,34 @@ def merge_annotations(ann1: str, ann2: str):
     return ''.join(lst)
 
 
-# needs validation
+# OK
 def aff_remove_tags_list(af, tags_list_out: list):
-    tags_dict = af['metadata']['tags_dict']
-    for tg in af['metadata']['tags_dict']:
+    tags_list = list(af['metadata']['tags_list'])
+    for tg in tags_list:
         if tg in tags_list_out:
-            del tags_dict[tg]
+            del af['metadata']['tags_dict'][tg]
+            af['metadata']['tags_list'].remove(tg)
     for ac in af['data']:
-        for tg in af['metadata']['tags_dict']:
+        for tg in tags_list:
             if tg in tags_list_out:
-                del af['data'][ac][tg]
-    af['metadata']['tags_dict'] = tags_dict
+                del af['data'][ac]['tags'][tg]
 
 
 def aff_rename_tag(af, old_tag: str, new_tag: str, new_info: str):
-    tag_used = False
-    for tg in range(len(af['metadata']['tags_dict'])):
-        if tg == old_tag:
-            af['metadata']['tags_dict'][new_tag] = new_info
-            del af['metadata']['tags_dict'][tg]
-            tag_used = True
-            break
-    if tag_used:
+    if old_tag in af['metadata']['tags_dict']:
+        af['metadata']['tags_dict'][new_tag] = new_info
+        ii = af['metadata']['tags_list'].index(old_tag)
+        af['metadata']['tags_list'][ii] = new_tag
+        del af['metadata']['tags_dict'][old_tag]
+
         for ac in af['data']:
-            af['data'][ac][new_tag] = af['data'][ac][old_tag]
-            del af['data'][ac][old_tag]
+            af['data'][ac]['tags'][new_tag] = af['data'][ac]['tags'][old_tag]
+            del af['data'][ac]['tags'][old_tag]
+    else:
+        print(f"Tag {old_tag} not found", flush=True)
 
 
+# OK
 def aff_remove_missing_scores(af):
     used_scores_set = set()
     ac_list = list(af['data'].keys())
@@ -542,15 +543,17 @@ def aff_remove_missing_scores(af):
                 break
 
 
+# OK
 def aff_remove_no_info_tag(af, tag: str):
     if tag not in af['metadata']['tags_dict']:
         return
     ac_list = list(af['data'].keys())
     for ac in ac_list:
-        if af['data'][ac][tag].count('-') == len(af['data'][ac][tag]):
+        if af['data'][ac]['tags'][tag].count('-') == len(af['data'][ac]['tags'][tag]):
             del af['data'][ac]
 
 
+# OK
 def aff_remove_no_class_tag(af, tag: str, cl: str):
     if tag not in af['metadata']['tags_dict']:
         return
@@ -561,23 +564,26 @@ def aff_remove_no_class_tag(af, tag: str, cl: str):
             del af['data'][ac]
 
 
+# OK
 def aff_remove_no_class_any(af, cl: str):
     ac_list = list(af['data'].keys())
     for ac in ac_list:
         rmv = True
         for tg in af['metadata']['tags_dict']:
-            if cl in af['data'][ac][tg]:
+            if cl in af['data'][ac]['tags'][tg]:
                 rmv = False
                 break
         if rmv:
             del af['data'][ac]
 
 
-def aff_add_tag(af, tag: str):
+# OK
+def aff_add_tag(af, tag: str, info: str='New tag'):
     if tag not in af['metadata']['tags_dict']:
-        af['metadata']['tags_dict'].append(tag)
+        af['metadata']['tags_list'].append(tag)
+        af['metadata']['tags_dict'][tag] = info
         for ac in af['data']:
-            af['data'][ac][tag] = '-' * len(af['data'][ac]['seq'])
+            af['data'][ac]['tags'][tag] = '-' * len(af['data'][ac]['seq'])
     else:
         print(f"{tag} exist in af", flush=True)
 
