@@ -196,8 +196,37 @@ def aff_clear_databases(af, clear_db_list=None, add_acc=False, clear_all_uniprot
                 af['data'][ac]['databases']['UniProt'].append(up0)
 
 
+def _verify_file_keys(in_file: str):
+    # 'ID Counts:'
+    key_dict = {'Data Name:': 0,
+                'Amino acid sequence': 0,
+                'ID Counts:': 0,
+                'Tag Counts:': 0
+                }
+    with open(in_file, 'r') as fin:
+        for line in fin:
+            line = line.strip()
+            # print(line, flush=True)
+            if len(line) == 0:
+                continue
+            if line[0] == '#':
+                for ky in key_dict:
+                    if ky in line:
+                        # print('===', flush=True)
+                        key_dict[ky] += 1
+            else:
+                break
+    for ky in key_dict:
+        if key_dict[ky] < 1:
+            print(f"Bad key: {ky} in {in_file}", flush=True)
+            return False
+    return True
+
+
 # new func
 def aff_load3(in_file: str, data_name: str='Data has no name'):  # , _mark=None
+    if not _verify_file_keys(in_file):
+        exit(0)
     af_sequences = {}
     tags_dict = {}
     tags_list = []
