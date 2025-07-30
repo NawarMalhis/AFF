@@ -71,7 +71,7 @@ def aff_process_go(dp_path, verbose=False):
                     print(go_id, file=fout)
 
 
-def aff_process_disprot(release, dp_path, verbose=False):
+def aff_disprot_process(release, dp_path, verbose=False):
     print(f"aff_process_disprot: {release}", flush=True)
     tags_names_dict = {'IDR': 'Protein disordered region', 'DtO': 'Disordered to ordered transition',
                        'Linker': 'Linker regions', 'binding': 'IDR binding in general',

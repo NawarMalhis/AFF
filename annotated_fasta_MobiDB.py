@@ -1,7 +1,27 @@
 from annotated_fasta import *
+import json
 
 
-def aff_mdb_fasta_to_af(mdb_file_list: list=None, tag_list: list=None, quality_list: list=None):
+def aff_mdb_json_to_af(mdb_file_list: list = None, tag_list: list = None, quality_list: list = None, verbose=False):
+    af = annotated_fasta(data_name='MobiDB from JSON')
+    tag = 'lip'  # 'binding_mode_disorder_to_disorder'  # 'disorder'  # , 'disorder'
+    for fl in mdb_file_list:
+        with open(fl, 'r') as fin:
+            data = json.load(fin)
+            for xx in data:
+                if 'sequence' not in xx:
+                    # print(xx['acc'], list(xx.keys()))
+                    # exit(0)
+                    continue
+                if f'curated-{tag}-merge' not in xx:
+                    lst = [z for z in list(xx.keys()) if f'curated-{tag}' in z]
+                    if len(lst) > 0:
+                        print(xx['acc'], lst)
+
+    return
+
+
+def aff_mdb_fasta_to_af(mdb_file_list: list = None, tag_list: list = None, quality_list: list = None):
     if mdb_file_list is None:
         print(f"Bad MobiDB fasta files:\t{mdb_file_list}", flush=True)
         return None
@@ -63,11 +83,14 @@ def aff_mdb_fasta_to_af(mdb_file_list: list=None, tag_list: list=None, quality_l
 
 
 # tags_quality_dict = {'HQ': ['curated'], 'LQ': ['derived', 'homology']}
-def aff_refine_mobidb(af, tags_quality_dict):
+def aff_mobidb_refine(af, tags_quality_dict):
     raf = annotated_fasta()
+    raf['metadata']['database_list'] = af['metadata']['database_list']
     for ac in af['data']:
         # print(ac, flush=True)
-        raf['data'][ac] = {'seq': af['data'][ac]['seq'], 'tags': {}, 'tmp': {}, 'databases': {}, 'scores': {}}
+        raf['data'][ac] = {'seq': af['data'][ac]['seq'], 'tags': {}, 'tmp': {},
+                           'databases': af['data'][ac]['databases'],
+                           'scores': {}}
         ## High Quality first
         for tag in af['data'][ac]['tags']:
             lst = tag.split('-')
@@ -119,17 +142,3 @@ def aff_refine_mobidb(af, tags_quality_dict):
         for tg in raf['data'][ac]['tmp']:
             raf['data'][ac]['tags'][tg] = ''.join(raf['data'][ac]['tmp'][tg])
     return raf
-
-
-
-
-
-
-
-
-
-
-
-
-
-
