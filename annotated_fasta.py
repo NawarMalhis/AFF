@@ -1,6 +1,7 @@
 import copy
 from crc64iso.crc64iso import crc64
-import requests
+from miscellaneous import get_url_response
+# import requests
 
 
 # 3_updated
@@ -737,30 +738,13 @@ def _gen_database_counts(af):
         af['metadata']['counts']['database_dict'][ntg]['unique'] = len(ntg_set_dict[ntg])
 
 
-def _get_url_response(url, **kwargs):
-    response = None
-    for attempt in range(1, 11):
-        try:
-            response = requests.get(url, **kwargs)
-            if response is not None:
-                break
-            else: print(f"Attempt {attempt} failed, response is None:\t{url}")
-        except Exception as e:
-            print(f"Attempt {attempt} failed: {url}")
-
-    if not response.ok:
-        print(response.text)
-        return None
-    return response
-
-
 def _process_uniprot_obsolete(in_up_list, seq, max_up_count=10, verbose=False):
     ac_list = []
     for o_ac in in_up_list:
         _vv = o_ac.split('.')[1]
         _ac = o_ac.split('.')[0]
         url = f"https://rest.uniprot.org/unisave/{_ac}?format=fasta&versions={_vv}"
-        response = _get_url_response(url)
+        response = get_url_response(url)
         if response is not None:
             r_seq = ''
             for ss in response.text.split('\n')[1:]:
@@ -781,7 +765,7 @@ def _process_uniprot_list(in_up_list, seq, db_dict, md_db_list, requested_databa
                           fout=None, verbose=False):
     for ac in in_up_list:
         url = f'https://rest.uniprot.org/uniprotkb/{ac}.json'
-        response = _get_url_response(url)
+        response = get_url_response(url)
         if response is None:
             print("_process_uniprot_list, response is None")
             continue
@@ -883,7 +867,7 @@ def aff_get_seq_databases(af, ac, requested_databases=None, max_id_count=10, fou
     ac_list2 = [[], []]
 
     checksum = crc64(seq)
-    response = _get_url_response(f"https://rest.uniprot.org/uniparc/search?query=checksum: {checksum}")
+    response = get_url_response(f"https://rest.uniprot.org/uniparc/search?query=checksum: {checksum}")
     if response is not None:
         data = response.json()
         if verbose:

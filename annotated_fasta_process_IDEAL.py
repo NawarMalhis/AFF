@@ -1,5 +1,6 @@
 import xml.etree.ElementTree as et
 from annotated_fasta import *
+from miscellaneous import is_float
 
 
 com_set = {'This region is ordered when it binds upon DNA.',
@@ -13,14 +14,6 @@ com_set = {'This region is ordered when it binds upon DNA.',
            'This region is ordered in the complex with RNA.',
            'This region is ordered in the DNA complex.'
            }
-
-def is_float(text):
-    try:
-        float(text)
-        return True
-    except ValueError:
-        return False
-
 
 def get_ideal_condition_set(en, temp_range, ph_range, idp_id):
     condition_id_set = set()
