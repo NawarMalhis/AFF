@@ -28,8 +28,10 @@ def is_float(text):
 
 def get_go_term_lineage(go_id, verbose=False):
     url = f"https://www.ebi.ac.uk/QuickGO/services/ontology/go/terms/{go_id}/ancestors?relations=is_a,part_of"
-    response = requests.get(url, headers={"Accept": "application/json"})
-
+    response = get_url_response(url)  # requests.get(url, headers={"Accept": "application/json"})
+    if response is None:
+        return None
+    # get_url_response
     if response.status_code == 200:
         data = response.json()
         if 'ancestors' not in data['results'][0]:
@@ -44,3 +46,28 @@ def get_go_term_lineage(go_id, verbose=False):
         print(f"Failed to retrieve data for {go_id}")
     return None
 
+
+def get_uniprot_seq(ac):
+    seq = None
+    ox = None
+    url = f'https://rest.uniprot.org/uniprotkb/{ac}.json'
+    response = get_url_response(url)
+    if response is None:
+        print("_process_uniprot_list, response is None")
+        return seq, ox
+    data = response.json()
+
+    ss = data.get('sequence')
+    if not ss:
+        return ss, ox
+    seq = ss['value']
+
+    _taxa = data.get('organism')
+    if not _taxa:
+        return ss, ox
+    if 'taxonId' not in _taxa:
+        return ss, ox
+
+    ox = str(_taxa['taxonId'])
+
+    return seq, ox
