@@ -26,9 +26,9 @@ def _get_tags(sz: int=0):
 def get_general(en):
     kd = None
     general = en.find('general')
-    kd_o = general.find('pdb_id')
+    kd_o = general.find('kd')
     if kd_o is not None:
-        kd = kd_o.text.strip()
+        kd = kd_o.find('value').text.strip()
     pdb = general.find('pdb_id').text.strip()
     method = general.find('exp_method').text.strip()
     d_statue = general.find('disorder_status').text.strip()
@@ -104,6 +104,7 @@ def aff_dibs_to_af(in_file: str=None, q_use_list: list=None, partners_file: str=
             print(acc)
         # ================= general
         pdb, method, d_statue, kd = get_general(en=entry)
+        # print(pdb, method, d_statue, kd, flush=True)
         # ================= function
         # function for tags based on molecular_function
         tag_set = get_functions(en=entry)
@@ -114,6 +115,10 @@ def aff_dibs_to_af(in_file: str=None, q_use_list: list=None, partners_file: str=
         for chain_o in macromolecules.findall('chain'):
             c_id = chain_o.find('id').text  # key
             c_type = chain_o.find('type').text.strip()  # 1
+            if 'Ordered' in c_type:
+                c_type = 'Ordered'
+            if c_type not in ['Ordered', 'Disordered']:
+                print('BAD c_type', acc, c_type)
             # c_seq = chain_o.find('sequence').text.strip()  # 2
             c_up_o = chain_o.find('uniprot')
             c_up_ac = c_up_o.find('id').text.strip()   # 3
@@ -155,7 +160,7 @@ def aff_dibs_to_af(in_file: str=None, q_use_list: list=None, partners_file: str=
                 if c_type == 'Ordered':
                     for ii in range(r_st-1, r_ed):
                         af['data'][c_up_ac]['tags']['list']['IDR_Partner'][ii] = '0'
-                else:
+                elif c_type == 'Disordered':
                     for ii in range(r_st-1, r_ed):
                         if d_statue in q_use_list:
                             af['data'][c_up_ac]['tags']['list']['DtoO'][ii] = '1'
@@ -163,17 +168,22 @@ def aff_dibs_to_af(in_file: str=None, q_use_list: list=None, partners_file: str=
                             if af['data'][c_up_ac]['tags']['list']['DtoO'][ii] != '1':
                                 af['data'][c_up_ac]['tags']['list']['DtoO'][ii] = '-'
             if fout:
-                dis_up = chain_dict['Disordered'][0]['UP']
-                dis_st = chain_dict['Disordered'][0]['start']
-                dis_ed = chain_dict['Disordered'][0]['end']
-                for ch_or in chain_dict['Ordered']:
-                    print(f"{acc}\t{dis_st}\t{dis_ed}", end='\t', file=fout)
-                    print(f"{ch_or['UP']}\t{ch_or['start']}\t{ch_or['end']}\t{kd}", file=fout, flush=True)
+                if len(chain_dict['Disordered']) == 1:
+                    dis_up = chain_dict['Disordered'][0]['UP']
+                    dis_st = chain_dict['Disordered'][0]['start']
+                    dis_ed = chain_dict['Disordered'][0]['end']
+                    for ch_or in chain_dict['Ordered']:
+                        print(f"{acc}\t{dis_up}\t{dis_st}\t{dis_ed}", end='\t', file=fout)
+                        print(f"{ch_or['UP']}\t{ch_or['start']}\t{ch_or['end']}\t{kd}", file=fout, flush=True)
+                else:
+                    print(f"{acc}\tlen(chain_dict['Disordered'])\t{len(chain_dict['Disordered'])}", flush=True)
+
     if fout:
         fout.close()
     for ac in af['data']:
         for tg in af['metadata']['tags_list']:
             af['data'][ac]['tags'][tg] = ''.join(af['data'][ac]['tags']['list'][tg])
+        del af['data'][ac]['tags']['list']
     return af
 
 #
