@@ -36,7 +36,7 @@ def get_general(en):
 
 
 def get_functions(en):
-    tag_set = set()
+    tag_set = {'binding'}
     func = en.find('function')
     mf = func.find('molecular_function')
     if mf is None:
@@ -57,7 +57,7 @@ def get_functions(en):
         if 'GO:0003674' not in ancestors:
             continue
         # if 'GO:0005488' in ancestors:
-        tag_set.add('binding')
+        # tag_set.add('binding')
         if 'GO:0003676' in ancestors:
             tag_set.add('binding_nucleic')
         if 'GO:0005515' in ancestors:
@@ -69,7 +69,10 @@ def get_functions(en):
     return tag_set
 
 
-def aff_dibs_to_af(in_file: str=None, q_use_list: list=None):
+def aff_dibs_to_af(in_file: str=None, q_use_list: list=None, partners_file: str=None):
+    fout = None
+    if partners_file:
+        fout = open(partners_file, 'w')
     if q_use_list is None:
         q_use_list = ['Confirmed', 'Inferred from motif', 'Inferred from homology']
     database_list = ['srcUniProt', 'OX', 'UniProt']
@@ -104,17 +107,14 @@ def aff_dibs_to_af(in_file: str=None, q_use_list: list=None):
         # ================= function
         # function for tags based on molecular_function
         tag_set = get_functions(en=entry)
+        # print(list(tag_set), flush=True)
         # ================= macromolecules for chains
         macromolecules = entry.find('macromolecules')
-        # mm_general = macromolecules.find('general')
-        # nr_of_chains_o = mm_general.find('nr_of_chains')
-        # nr_of_chains = 0
-        # if nr_of_chains_o is not None:
-        #     nr_of_chains = int(nr_of_chains_o.text)
+        chain_dict = {'Disordered': [], 'Ordered': []}
         for chain_o in macromolecules.findall('chain'):
             c_id = chain_o.find('id').text  # key
             c_type = chain_o.find('type').text.strip()  # 1
-            c_seq = chain_o.find('sequence').text.strip()  # 2
+            # c_seq = chain_o.find('sequence').text.strip()  # 2
             c_up_o = chain_o.find('uniprot')
             c_up_ac = c_up_o.find('id').text.strip()   # 3
             c_up_st = int(c_up_o.find('start').text.strip())  # 4
@@ -134,24 +134,24 @@ def aff_dibs_to_af(in_file: str=None, q_use_list: list=None):
             if c_up_ed > len(af['data'][c_up_ac]['seq']):
                 print(f"ERROR: Bad region in protein {c_up_ed}, PDB {pdb} chain {c_id}", flush=True)
                 continue  # next chain
+            chain_dict[c_type].append({'UP': c_up_ac, 'start': c_up_st, 'end': c_up_ed})
             if c_type == 'Disordered':
                 tag_lst = ['IDR'] + list(tag_set)
             else:
                 tag_lst = ['IDR_Partner']
 
             for tag in tag_lst:
+                # print(c_up_ac, tag, c_up_st-1, c_up_ed, flush=True)
                 for ii in range(c_up_st-1, c_up_ed):
                     af['data'][c_up_ac]['tags']['list'][tag][ii] = '1'
 
             regions_o = chain_o.find('regions')
             for rg in regions_o:
-                # based on c_type
                 r_type = rg.find('region_type').text.strip()
                 r_st = int(rg.find('region_start').text.strip())
                 r_ed = int(rg.find('region_end').text.strip())
                 if r_type != 'secondary structure':
                     continue
-                # tag_lst = ['binding', 'DtoO', 'protein bind']
                 if c_type == 'Ordered':
                     for ii in range(r_st-1, r_ed):
                         af['data'][c_up_ac]['tags']['list']['IDR_Partner'][ii] = '0'
@@ -162,7 +162,15 @@ def aff_dibs_to_af(in_file: str=None, q_use_list: list=None):
                         else:
                             if af['data'][c_up_ac]['tags']['list']['DtoO'][ii] != '1':
                                 af['data'][c_up_ac]['tags']['list']['DtoO'][ii] = '-'
-
+            if fout:
+                dis_up = chain_dict['Disordered'][0]['UP']
+                dis_st = chain_dict['Disordered'][0]['start']
+                dis_ed = chain_dict['Disordered'][0]['end']
+                for ch_or in chain_dict['Ordered']:
+                    print(f"{acc}\t{dis_st}\t{dis_ed}", end='\t', file=fout)
+                    print(f"{ch_or['UP']}\t{ch_or['start']}\t{ch_or['end']}\t{kd}", file=fout, flush=True)
+    if fout:
+        fout.close()
     for ac in af['data']:
         for tg in af['metadata']['tags_list']:
             af['data'][ac]['tags'][tg] = ''.join(af['data'][ac]['tags']['list'][tg])
