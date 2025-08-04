@@ -5,13 +5,18 @@ from miscellaneous import get_url_response
 
 
 # 3_updated
-def annotated_fasta(data_name: str='Data has no Name', database_list: list=None, accession: str=None):
+def annotated_fasta(data_name: str='Data has no Name', database_list: list=None, accession: str=None,
+                    tags_dict: dict=None, tags_list: list=None):
     if database_list is None:
         database_list = []
+    if tags_dict is None:
+        tags_dict = {}
+    if tags_list is None:
+        tags_list = list(tags_dict.keys())
     if accession is not None:
         if accession not in database_list:
             database_list.append(accession)
-    return {'data': {}, 'metadata': {'tags_dict': {}, 'tags_list': [], 'database_list': database_list,
+    return {'data': {}, 'metadata': {'tags_dict': tags_dict, 'tags_list': tags_list, 'database_list': database_list,
                                      'counts': None, 'accession': accession, 'data_name': data_name}}
 
 
