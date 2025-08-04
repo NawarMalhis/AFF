@@ -167,16 +167,16 @@ def aff_dibs_to_af(in_file: str=None, q_use_list: list=None, partners_file: str=
                         else:
                             if af['data'][c_up_ac]['tags']['list']['DtoO'][ii] != '1':
                                 af['data'][c_up_ac]['tags']['list']['DtoO'][ii] = '-'
-            if fout:
-                if len(chain_dict['Disordered']) == 1:
-                    dis_up = chain_dict['Disordered'][0]['UP']
-                    dis_st = chain_dict['Disordered'][0]['start']
-                    dis_ed = chain_dict['Disordered'][0]['end']
-                    for ch_or in chain_dict['Ordered']:
-                        print(f"{acc}\t{dis_up}\t{dis_st}\t{dis_ed}", end='\t', file=fout)
-                        print(f"{ch_or['UP']}\t{ch_or['start']}\t{ch_or['end']}\t{kd}", file=fout, flush=True)
-                else:
-                    print(f"{acc}\tlen(chain_dict['Disordered'])\t{len(chain_dict['Disordered'])}", flush=True)
+        if fout:
+            if len(chain_dict['Disordered']) == 1:
+                dis_up = chain_dict['Disordered'][0]['UP']
+                dis_st = chain_dict['Disordered'][0]['start']
+                dis_ed = chain_dict['Disordered'][0]['end']
+                for ch_or in chain_dict['Ordered']:
+                    print(f"{acc}\t{dis_up}\t{dis_st}\t{dis_ed}", end='\t', file=fout)
+                    print(f"{ch_or['UP']}\t{ch_or['start']}\t{ch_or['end']}\t{kd}", file=fout, flush=True)
+            else:
+                print(f"{acc}\tlen(chain_dict['Disordered'])\t{len(chain_dict['Disordered'])}", flush=True)
 
     if fout:
         fout.close()
