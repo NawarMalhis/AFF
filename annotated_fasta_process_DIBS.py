@@ -9,8 +9,6 @@ go_obsolete_dict = {'GO:0097159': '', 'GO:0005070': '', 'GO:1990521': '', 'GO:00
                     'GO:0001083': 'GO:0003676', 'GO:0001135': '	GO:0003712', 'GO:0001076': 'GO:0003676',
                     'GO:0000989': 'GO:0008134', 'GO:0043621': 'GO:0005515'}
 
-disordered_statue_use = ['Confirmed', 'Inferred from motif', 'Inferred from homology']
-
 def _get_tags(sz: int=0):
     return {'IDR': '', 'IDR_Partner': '', 'DtoO': '', 'binding': '', 'binding_protein': '', 'binding_nucleic': '',
             'binding_lipid': '', 'binding_SM': '',
@@ -71,7 +69,9 @@ def get_functions(en):
     return tag_set
 
 
-def aff_dibs_to_af(in_file: str=None):
+def aff_dibs_to_af(in_file: str=None, q_use_list: list=None):
+    if q_use_list is None:
+        q_use_list = ['Confirmed', 'Inferred from motif', 'Inferred from homology']
     database_list = ['srcUniProt', 'OX', 'UniProt']
     tags_dict = {'IDR': 'disorder', 'IDR_Partner': 'IDR partner', 'DtoO': 'Disorder to Order', 'binding': 'Binding',
                  'binding_protein': 'protein bind', 'binding_nucleic': 'nucleic bind', 'binding_lipid': 'lipid binding',
@@ -104,22 +104,19 @@ def aff_dibs_to_af(in_file: str=None):
         # ================= function
         # function for tags based on molecular_function
         tag_set = get_functions(en=entry)
-        # tag_set = {'binding_protein'}
-        # ================= macromolecules
+        # ================= macromolecules for chains
         macromolecules = entry.find('macromolecules')
-        mm_general = macromolecules.find('general')
-        nr_of_chains_o = mm_general.find('nr_of_chains')
+        # mm_general = macromolecules.find('general')
+        # nr_of_chains_o = mm_general.find('nr_of_chains')
         # nr_of_chains = 0
         # if nr_of_chains_o is not None:
         #     nr_of_chains = int(nr_of_chains_o.text)
-        chain_dict = {}
         for chain_o in macromolecules.findall('chain'):
             c_id = chain_o.find('id').text  # key
             c_type = chain_o.find('type').text.strip()  # 1
             c_seq = chain_o.find('sequence').text.strip()  # 2
             c_up_o = chain_o.find('uniprot')
             c_up_ac = c_up_o.find('id').text.strip()   # 3
-            # print(c_up_ac, flush=True)
             c_up_st = int(c_up_o.find('start').text.strip())  # 4
             c_up_ed = int(c_up_o.find('end').text.strip())  # 5
             if c_up_ac not in af['data']:
@@ -134,7 +131,6 @@ def aff_dibs_to_af(in_file: str=None):
                 else:
                     print(acc, pdb, c_id, c_up_ac)
                     continue  # next chain
-            chain_dict[c_id] = {'up_ac': c_up_ac, 'type': c_type, 'seq': c_seq, 'start': c_up_st, 'end': c_up_ed}
             if c_up_ed > len(af['data'][c_up_ac]['seq']):
                 print(f"ERROR: Bad region in protein {c_up_ed}, PDB {pdb} chain {c_id}", flush=True)
                 continue  # next chain
@@ -161,12 +157,11 @@ def aff_dibs_to_af(in_file: str=None):
                         af['data'][c_up_ac]['tags']['list']['IDR_Partner'][ii] = '0'
                 else:
                     for ii in range(r_st-1, r_ed):
-                        if d_statue in disordered_statue_use:
+                        if d_statue in q_use_list:
                             af['data'][c_up_ac]['tags']['list']['DtoO'][ii] = '1'
                         else:
                             if af['data'][c_up_ac]['tags']['list']['DtoO'][ii] != '1':
                                 af['data'][c_up_ac]['tags']['list']['DtoO'][ii] = '-'
-        # print(cnt, len(af['data']), acc, pdb, method, d_statue)  # , list(tag_set))
 
     for ac in af['data']:
         for tg in af['metadata']['tags_list']:
