@@ -12,7 +12,7 @@ go_obsolete_dict = {'GO:0097159': '', 'GO:0005070': '', 'GO:1990521': '', 'GO:00
 def _get_tags(sz: int=0):
     return {'IDR': '', 'IDR_Partner': '', 'DtoO': '', 'binding': '', 'binding_protein': '', 'binding_nucleic': '',
             'binding_lipid': '', 'binding_SM': '',
-            'list': {'IDR': ['0'] * sz,
+            'list': {'IDR': ['-'] * sz,
                      'IDR_Partner': ['-'] * sz,
                      'DtoO': ['0'] * sz,
                      'binding': ['0'] * sz,
@@ -142,13 +142,15 @@ def aff_dibs_to_af(in_file: str=None, q_use_list: list=None, partners_file: str=
             chain_dict[c_type].append({'UP': c_up_ac, 'start': c_up_st, 'end': c_up_ed})
             if c_type == 'Disordered':
                 tag_lst = ['IDR'] + list(tag_set)
+                cc = '1'
             else:
                 tag_lst = ['IDR_Partner']
+                cc = '0'
 
             for tag in tag_lst:
                 # print(c_up_ac, tag, c_up_st-1, c_up_ed, flush=True)
                 for ii in range(c_up_st-1, c_up_ed):
-                    af['data'][c_up_ac]['tags']['list'][tag][ii] = '1'
+                    af['data'][c_up_ac]['tags']['list'][tag][ii] = cc
 
             regions_o = chain_o.find('regions')
             for rg in regions_o:
