@@ -1,4 +1,21 @@
 import requests
+import xml.etree.ElementTree as et
+
+dbs_database_list = ['srcUniProt']
+
+def get_dbs_tags_dict(source):
+    return {'IDR': f'{source} disorder', 'DtoO': f'{source} disorder to order transition',
+            'binding_protein': f'{source} protein bind', 'binding_nucleic': f'{source} nucleic bind',
+            'IDR_partner': f'{source} partner disorder', 'binding_partner': f'{source} partner protein bind'
+            }
+
+def get_dbs_ac_tags(sz):
+    return {'IDR': '-' * sz, 'DtoO': '-' * sz, 'binding_protein': '-' * sz, 'binding_nucleic': '-' * sz,
+            'IDR_partner': '-' * sz, 'binding_partner': '-' * sz,
+            'list': {'IDR': ['-'] * sz, 'DtoO': ['0'] * sz, 'binding_protein': ['0'] * sz,
+                     'binding_nucleic': ['0'] * sz, 'IDR_partner': ['-'] * sz, 'binding_partner': ['0'] * sz
+                     }
+            }
 
 
 def get_url_response(url, **kwargs):
@@ -45,6 +62,20 @@ def get_go_term_lineage(go_id, verbose=False):
     else:
         print(f"Failed to retrieve data for {go_id}")
     return None
+
+
+def get_xml_root(xml_file):
+    root = None
+    try:
+        tree = et.parse(xml_file)
+        root = tree.getroot()
+    except FileNotFoundError:
+        print(f"{xml_file}\tFile not found.")
+        exit(1)
+    except et.ParseError:
+        print(f"{xml_file}\tInvalid XML format.")
+        exit(1)
+    return root
 
 
 def get_uniprot_seq(ac):
