@@ -224,16 +224,10 @@ def process_ne_proc_all(af, root):
                 if st < 1 or ed > len(lst):
                     ok = False
                     continue
-                # print(idp_id, 'disorder', len(lst), st, ed, flush=True)
                 for ii in range(st-1, ed):
                     lst[ii] = '1'
         if ok:
             af['data'][idp_id]['tags']['NP'] = ''.join(lst)
-            if af['data'][idp_id]['tags']['NP'][-1] == '-':
-                print(f'{idp_id}\tBad NeProc ----', flush=True)
-        else:
-            print(f'{idp_id}\tBad NeProc', flush=True)
-            af['data'][idp_id]['tags']['NP'] = '-' * len(lst)
     return
 
 
@@ -250,14 +244,11 @@ def get_interaction_partners(af, root):
                 af['data'][ac]['tags']['list']['IDR_partner'][ii] = '0'
 
     ac_list = list(af['data'].keys())
-    # x_ac_set = set()
     for ac in ac_list:
         if af['data'][ac]['tags']['list']['IDR_partner'].count('1') == 0:
             del af['data'][ac]
-            # x_ac_set.add(ac)
     ac_list = list(af['data'].keys())
 
-    cnt = 0
     for interaction in root.findall('IDEAL_interaction'):
         int_id = interaction.find('interaction_id').text.strip()
         id1_o = interaction.find('IDEAL_entry_1')
@@ -312,19 +303,15 @@ def aff_ideal_to_af(in_file: str = None, temp_range: list = None, ph_range: list
     process_ne_proc_all(af, root)
     interactions_dict = get_interaction_partners(af, root)
 
-    # cnt = 0
-    # for ac in af['data']:
-    #     if af['data'][ac]['tags']['list']['IDR'].count('-') == len(af['data'][ac]['seq']):
-    #         if af['data'][ac]['tags']['list']['binding_partner'].count('1') == 0:
-    #             cnt += 1
-    #             print('Empty:', cnt, ac, flush=True)
-
     for tg in af['metadata']['tags_list']:
         for ac in af['data']:
             af['data'][ac]['tags'][tg] = ''.join(af['data'][ac]['tags']['list'][tg])
 
     for ac in af['data']:
-        if af['data'][ac]['tags']['NP'][-1] == '-':
+        if 'NP' in af['data'][ac]['tags']:
+            if af['data'][ac]['tags']['NP'][-1] == '-':
+                af['data'][ac]['tags']['NP'] = '-' * len(af['data'][ac]['seq'])
+        else:
             af['data'][ac]['tags']['NP'] = '-' * len(af['data'][ac]['seq'])
 
     return af, interactions_dict
