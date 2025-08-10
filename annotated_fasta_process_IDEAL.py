@@ -312,15 +312,19 @@ def aff_ideal_to_af(in_file: str = None, temp_range: list = None, ph_range: list
     process_ne_proc_all(af, root)
     interactions_dict = get_interaction_partners(af, root)
 
-    cnt = 0
-    for ac in af['data']:
-        if af['data'][ac]['tags']['list']['IDR'].count('-') == len(af['data'][ac]['seq']):
-            if af['data'][ac]['tags']['list']['binding_partner'].count('1') == 0:
-                cnt += 1
-                print('Empty:', cnt, ac, flush=True)
+    # cnt = 0
+    # for ac in af['data']:
+    #     if af['data'][ac]['tags']['list']['IDR'].count('-') == len(af['data'][ac]['seq']):
+    #         if af['data'][ac]['tags']['list']['binding_partner'].count('1') == 0:
+    #             cnt += 1
+    #             print('Empty:', cnt, ac, flush=True)
 
     for tg in af['metadata']['tags_list']:
         for ac in af['data']:
             af['data'][ac]['tags'][tg] = ''.join(af['data'][ac]['tags']['list'][tg])
+
+    for ac in af['data']:
+        if af['data'][ac]['tags']['NP'][-1] == '-':
+            af['data'][ac]['tags']['NP'] = '-' * len(af['data'][ac]['seq'])
 
     return af, interactions_dict
