@@ -1,6 +1,6 @@
 import xml.etree.ElementTree as et
 from annotated_fasta import *
-from miscellaneous import is_float
+from miscellaneous import is_float, get_xml_root
 
 
 def _get_tags(sz: int=0):
@@ -18,15 +18,8 @@ def get_general(en):
 
 
 def aff_mfib_to_af(in_file, af):
-    try:
-        tree = et.parse(in_file)
-        root = tree.getroot()
-    except FileNotFoundError:
-        print(f"File not found:\t{in_file}")
-        exit(1)
-    except et.ParseError:
-        print(f"Invalid XML format:\t{in_file}")
-        exit(1)
+    root = get_xml_root(xml_file=in_file)
+
     acc = root.find('accession').text
     # pdb, method = get_general(en=entry)
     # ================= macromolecules for chains
