@@ -1,6 +1,6 @@
 import xml.etree.ElementTree as et
 from annotated_fasta import *
-from miscellaneous import is_float, get_go_term_lineage, get_uniprot_seq
+from miscellaneous import is_float, get_go_term_lineage, get_uniprot_seq, get_xml_root
 # from miscellaneous import get_url_response
 
 go_obsolete_dict = {'GO:0097159': '', 'GO:0005070': '', 'GO:1990521': '', 'GO:0005057': '', 'GO:0004871': '',
@@ -69,6 +69,66 @@ def get_functions(en):
     return tag_set
 
 
+def get_macromolecules(en, af, chain_dict, tag_set, acc, pdb, d_statue, q_use_list):
+    macromolecules = en.find('macromolecules')
+    for chain_o in macromolecules.findall('chain'):
+        c_id = chain_o.find('id').text.strip()  # key
+        c_type = chain_o.find('type').text.strip()  # 1
+        if 'Ordered' in c_type:
+            c_type = 'Ordered'
+        if c_type not in ['Ordered', 'Disordered']:
+            print('BAD c_type', acc, c_type)
+            continue
+        # c_seq = chain_o.find('sequence').text.strip()  # 2
+        c_up_o = chain_o.find('uniprot')
+        c_up_ac = c_up_o.find('id').text.strip()  # 3
+        c_up_st = int(c_up_o.find('start').text.strip())  # 4
+        c_up_ed = int(c_up_o.find('end').text.strip())  # 5
+        if c_up_ac not in af['data']:
+            seq, ox = get_uniprot_seq(c_up_ac)
+            if seq is not None:
+                ox_lst = []
+                if ox is not None:
+                    ox_lst = [ox]
+                af['data'][c_up_ac] = {'seq': seq, 'tags': _get_tags(sz=len(seq)),
+                                       'databases': {'srcUniProt': [c_up_ac], 'OX': ox_lst, 'UniProt': [c_up_ac]},
+                                       'scores': {}}
+            else:
+                print("Error, sequence not found", acc, pdb, c_id, c_up_ac)
+                continue  # next chain
+        if c_up_ed > len(af['data'][c_up_ac]['seq']):
+            print(f"ERROR: Bad region in protein {c_up_ed}, PDB {pdb} chain {c_id}", flush=True)
+            continue  # next chain
+        chain_dict[c_type].append({'UP': c_up_ac, 'start': c_up_st, 'end': c_up_ed})
+        if c_type == 'Disordered':
+            tag_lst = ['IDR'] + list(tag_set)
+        else:
+            tag_lst = ['IDR_Partner']
+
+        for tag in tag_lst:
+            # print(c_up_ac, tag, c_up_st-1, c_up_ed, flush=True)
+            for ii in range(c_up_st - 1, c_up_ed):
+                af['data'][c_up_ac]['tags']['list'][tag][ii] = '1'
+
+        regions_o = chain_o.find('regions')
+        for rg in regions_o:
+            r_type = rg.find('region_type').text.strip()
+            r_st = int(rg.find('region_start').text.strip())
+            r_ed = int(rg.find('region_end').text.strip())
+            if r_type != 'secondary structure':
+                continue
+            if c_type == 'Ordered':
+                for ii in range(r_st - 1, r_ed):
+                    af['data'][c_up_ac]['tags']['list']['IDR_Partner'][ii] = '0'
+            elif c_type == 'Disordered':
+                for ii in range(r_st - 1, r_ed):
+                    if d_statue in q_use_list:
+                        af['data'][c_up_ac]['tags']['list']['DtoO'][ii] = '1'
+                    else:
+                        if af['data'][c_up_ac]['tags']['list']['DtoO'][ii] != '1':
+                            af['data'][c_up_ac]['tags']['list']['DtoO'][ii] = '-'
+
+
 def aff_dibs_to_af(in_file: str=None, q_use_list: list=None, partners_file: str=None):
     fout = None
     if partners_file:
@@ -80,95 +140,22 @@ def aff_dibs_to_af(in_file: str=None, q_use_list: list=None, partners_file: str=
                  'binding_protein': 'protein bind', 'binding_nucleic': 'nucleic bind', 'binding_lipid': 'lipid binding',
                  'binding_SM': ''}
     af = annotated_fasta(database_list=database_list, tags_dict=tags_dict)
-    root = None
-    try:
-        tree = et.parse(in_file)
-        root = tree.getroot()
-    except FileNotFoundError:
-        print("File not found.")
-        exit(1)
-    except et.ParseError:
-        print("Invalid XML format.")
-        exit(1)
+    root = get_xml_root(xml_file=in_file)
 
-    cnt = 0
-    e_set = set()
     for entry in root.findall('entry'):
-        # entry contain: accession, general, function, macromolecules, evidence
-        cnt += 1
+        # entry contains: accession, general, function, macromolecules, evidence
         # ================= accession
         acc = entry.find('accession').text
-        if acc not in e_set:
-            e_set.add(acc)
-        else:
-            print(acc)
         # ================= general
         pdb, method, d_statue, kd = get_general(en=entry)
-        # print(pdb, method, d_statue, kd, flush=True)
         # ================= function
         # function for tags based on molecular_function
+        # tag_set = {'binding'}
         tag_set = get_functions(en=entry)
-        # print(list(tag_set), flush=True)
         # ================= macromolecules for chains
-        macromolecules = entry.find('macromolecules')
         chain_dict = {'Disordered': [], 'Ordered': []}
-        for chain_o in macromolecules.findall('chain'):
-            c_id = chain_o.find('id').text  # key
-            c_type = chain_o.find('type').text.strip()  # 1
-            if 'Ordered' in c_type:
-                c_type = 'Ordered'
-            if c_type not in ['Ordered', 'Disordered']:
-                print('BAD c_type', acc, c_type)
-            # c_seq = chain_o.find('sequence').text.strip()  # 2
-            c_up_o = chain_o.find('uniprot')
-            c_up_ac = c_up_o.find('id').text.strip()   # 3
-            c_up_st = int(c_up_o.find('start').text.strip())  # 4
-            c_up_ed = int(c_up_o.find('end').text.strip())  # 5
-            if c_up_ac not in af['data']:
-                seq, ox = get_uniprot_seq(c_up_ac)
-                if seq is not None:
-                    ox_lst = []
-                    if ox is not None:
-                        ox_lst = [ox]
-                    af['data'][c_up_ac] = {'seq': seq, 'tags': _get_tags(sz=len(seq)),
-                                           'databases': {'srcUniProt': [c_up_ac], 'OX': ox_lst, 'UniProt': [c_up_ac]},
-                                           'scores': {}}
-                else:
-                    print(acc, pdb, c_id, c_up_ac)
-                    continue  # next chain
-            if c_up_ed > len(af['data'][c_up_ac]['seq']):
-                print(f"ERROR: Bad region in protein {c_up_ed}, PDB {pdb} chain {c_id}", flush=True)
-                continue  # next chain
-            chain_dict[c_type].append({'UP': c_up_ac, 'start': c_up_st, 'end': c_up_ed})
-            if c_type == 'Disordered':
-                tag_lst = ['IDR'] + list(tag_set)
-                cc = '1'
-            else:
-                tag_lst = ['IDR_Partner']
-                cc = '0'
-
-            for tag in tag_lst:
-                # print(c_up_ac, tag, c_up_st-1, c_up_ed, flush=True)
-                for ii in range(c_up_st-1, c_up_ed):
-                    af['data'][c_up_ac]['tags']['list'][tag][ii] = cc
-
-            regions_o = chain_o.find('regions')
-            for rg in regions_o:
-                r_type = rg.find('region_type').text.strip()
-                r_st = int(rg.find('region_start').text.strip())
-                r_ed = int(rg.find('region_end').text.strip())
-                if r_type != 'secondary structure':
-                    continue
-                if c_type == 'Ordered':
-                    for ii in range(r_st-1, r_ed):
-                        af['data'][c_up_ac]['tags']['list']['IDR_Partner'][ii] = '0'
-                elif c_type == 'Disordered':
-                    for ii in range(r_st-1, r_ed):
-                        if d_statue in q_use_list:
-                            af['data'][c_up_ac]['tags']['list']['DtoO'][ii] = '1'
-                        else:
-                            if af['data'][c_up_ac]['tags']['list']['DtoO'][ii] != '1':
-                                af['data'][c_up_ac]['tags']['list']['DtoO'][ii] = '-'
+        # en, af, chain_dict, tag_set, acc, pdb, d_statue, q_use_list
+        get_macromolecules(entry, af, chain_dict, tag_set, acc=acc, pdb=pdb, d_statue=d_statue, q_use_list=q_use_list)
         if fout:
             if len(chain_dict['Disordered']) == 1:
                 dis_up = chain_dict['Disordered'][0]['UP']
