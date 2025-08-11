@@ -1,6 +1,6 @@
 import xml.etree.ElementTree as et
 from annotated_fasta import *
-from miscellaneous import is_float
+from miscellaneous import is_float, get_xml_root
 
 
 def _get_tags(sz: int=0):
@@ -14,16 +14,7 @@ def aff_fuzdb_to_af(in_file):
     database_list = ['srcUniProt']
     tags_dict = {'IDR': 'disorder', 'binding_protein': 'protein bind'}
     af = annotated_fasta(database_list=database_list, tags_dict=tags_dict)
-
-    try:
-        tree = et.parse(in_file)
-        root = tree.getroot()
-    except FileNotFoundError:
-        print(f"File not found:\t{in_file}")
-        exit(1)
-    except et.ParseError:
-        print(f"Invalid XML format:\t{in_file}")
-        exit(1)
+    root = get_xml_root(xml_file=in_file)
 
     cnt = 0
     for fdb in root.findall('fuzdb'):
