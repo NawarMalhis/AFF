@@ -300,7 +300,7 @@ def aff_ideal_to_af(in_file: str = None, temp_range: list = None, ph_range: list
 
     process_ideal_idr_all(af, root, temp_range=temp_range, ph_range=ph_range)
     process_pros_all(af, root, lq_list=lq_list, verbose=True)
-    process_ne_proc_all(af, root)
+    process_ne_proc_all(af, root)  # IDR prediction NeProc
     interactions_dict = get_interaction_partners(af, root)
 
     for tg in af['metadata']['tags_list']:
