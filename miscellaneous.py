@@ -1,5 +1,7 @@
 import requests
 import xml.etree.ElementTree as et
+import json
+
 
 dbs_database_list = ['srcUniProt']
 
@@ -76,6 +78,18 @@ def get_xml_root(xml_file):
         print(f"{xml_file}\tInvalid XML format.")
         exit(1)
     return root
+
+def load_json(file_path):
+    try:
+        with open(file_path, 'r') as file:
+            data = json.load(file)
+        return data
+    except json.JSONDecodeError as e:
+        print(f"Error decoding JSON: {e}")
+        return None
+    except FileNotFoundError:
+        print(f"File not found: {file_path}")
+        return None
 
 
 def get_uniprot_seq(ac):

@@ -73,11 +73,18 @@ def aff_process_go(dp_path, verbose=False):
 
 def aff_disprot_process(release, dp_path, verbose=False):
     print(f"aff_process_disprot: {release}", flush=True)
+    PDB_ECO_list = ['ECO:0006042', 'ECO:0000218', 'ECO:0000219', 'ECO:0006222', 'ECO:0006223', 'ECO:0006043',
+                    'ECO:0000220', 'ECO:0000221', 'ECO:0006243', 'ECO:0006244', 'ECO:0006062', 'ECO:0006201',
+                    'ECO:0006202', 'ECO:0006251', 'ECO:0006252',  'ECO:0006220', 'ECO:0006210',
+                    'ECO:0000250', 'ECO:0000208', 'ECO:0000211', 'ECO:0006064', 'ECO:0006065', 'ECO:0006066']
+    e_set = set()
     tags_names_dict = {'IDR': 'Protein disordered region', 'DtO': 'Disordered to ordered transition',
                        'Linker': 'Linker regions', 'binding': 'IDR binding in general',
                        'binding_protein': 'IDR-binding to proteins', 'binding_nucleic': 'IDR-binding to nucleic',
                        'binding_ion': 'IDR-binding to ions', 'binding_lipid': 'IDR-binding to lipids',
-                       'binding_SM': 'IDR binding to small molecule'}
+                       'binding_SM': 'IDR binding to small molecule',
+                       'binding_protein_PDB': 'IDR-binding to proteins based on PDB evidence',
+                       'binding_protein_none_PDB': 'IDR-binding to proteins based on none PDB evidence'}
 
     tags_list = list(tags_names_dict.keys())
 
@@ -91,8 +98,8 @@ def aff_disprot_process(release, dp_path, verbose=False):
 
     database_list = ['DisProt', 'UniProt', 'OX']
     disprot = annotated_fasta(data_name=f'DisProt release_{release}, annotations include descendants',
-                              database_list=database_list, accession='DisProt')
-    disprot['metadata']['tags_dict'] = tags_names_dict
+                              database_list=database_list, accession='DisProt', tags_dict=tags_names_dict)
+    partners_list = []
 
     for dd in data['data']:
         ac = dd['disprot_id']
@@ -104,10 +111,53 @@ def aff_disprot_process(release, dp_path, verbose=False):
             disprot['data'][ac]['tags'][f"lst_{tid}"] = ['0'] * len(disprot['data'][ac]['seq'])
         for rg in dd['regions']:
             tid = rg['term_id']
+            eid = ''
+            pdb_id = '--'
+            if 'ec_id' in rg:
+                eid = rg['ec_id']
+            if "cross_refs" in rg:
+                for cr in rg["cross_refs"]:
+                    if 'db' not in cr:
+                        continue
+                    if cr['db'] != 'PDB':
+                        continue
+                    pdb_id = cr['id']
             if tid in tags_sets_dict:
                 st = int(rg['start']) - 1
                 ed = int(rg['end'])
+                if 'interaction_partner' in rg:
+                    partners = rg['interaction_partner']
+                    # print(f"{tid}\t{ac}\t{st}\t{ed}:", end='\t')
+                    partner_dict = {'DisProt_region': {'tid': tid, 'ac': ac, 'start': st, 'end': ed, 'PDB': pdb_id},
+                                    'Partners': []}
+                    for prt in partners:
+                        if prt['db'] != 'UniProt':
+                            continue
+                        if 'partner_start' not in prt:
+                            continue
+                        if prt['partner_start'] is not None:
+                            pst = int(prt['partner_start'])
+                            ped = int(prt['partner_end'])
+                            opr = ''
+                            if 'operator' in prt:
+                                if prt['operator']:
+                                    opr = prt['operator']
+                            # print(f"{opr}\t{prt['id']}\t{pst}\t{ped}", end='\t')
+                            partner_dict['Partners'].append({'ac': prt['id'], 'start': pst, 'end': ped, 'opr': opr})
+                    # print(flush=True)
+                    if len(partner_dict['Partners']) > 0:
+                        partners_list.append(partner_dict)
                 for tag in tags_sets_dict[tid]:
+                    # eid in PDB_ECO_list
+                    if tag == 'binding_protein':
+                        if len(pdb_id) > 2:
+                            e_set.add(eid)
+                            tag2 = 'binding_protein_PDB'
+                        else:
+                            tag2 = 'binding_protein_none_PDB'
+                        for i in range(st, ed):
+                            disprot['data'][ac]['tags'][f"lst_{tag2}"][i] = '1'
+
                     for i in range(st, ed):
                         disprot['data'][ac]['tags'][f"lst_{tag}"][i] = '1'
 
@@ -134,15 +184,16 @@ def aff_disprot_process(release, dp_path, verbose=False):
             disprot['data'][ac]['tags'][tid] = ''.join(disprot['data'][ac]['tags'][f"lst_{tid}"])
 
     aff_remove_no_class_tag(af=disprot, tag='IDR', cl='1')
-
-    out_file = f"{dp_path}DisProt_{release}.af"
-    aff_save3(f_name=out_file, af=disprot)
+    # print(e_set)
+    return disprot, partners_list
 
 
 def _load_tags_sets_dict(dp_path, tags_list):
     tags_dict = {}
     _p = f'{dp_path}GO/'
     for tag in tags_list:
+        if 'PDB' in tag:
+            continue
         with open(f"{_p}{tag}.set", 'r') as fin:
             for line in fin:
                 line = line.strip()
