@@ -196,7 +196,7 @@ def aff_success_rate(af, tag, prd_list, success_rate_file=None, success_data_fil
     aff_remove_missing_scores(af_copy)
     _filter_for_success(af_copy, tag=tag, cut=5)
     if success_data_file is not None:
-        aff_save(af=af_copy, f_name=success_data_file)
+        aff_save3(af=af_copy, f_name=success_data_file)
     success_rate_dict = {}
     for prd in prd_list:
         success_cnt = 0.0

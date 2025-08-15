@@ -1,6 +1,7 @@
 import requests
 import xml.etree.ElementTree as et
 import json
+import os
 
 
 dbs_database_list = ['srcUniProt']
@@ -116,3 +117,20 @@ def get_uniprot_seq(ac):
     ox = str(_taxa['taxonId'])
 
     return seq, ox
+
+
+def run_iup(fasta_path, iup_path, out_path):
+    f_list = os.listdir(fasta_path)
+    for ff in f_list:
+        cmd = f"python3 {iup_path}iupred3.py -a {fasta_path}{ff} short > {out_path}{ff.split('.')[0]}.iup3"
+        os.system(cmd)
+
+
+def split_fasta(in_file, out_path):
+    from annotated_fasta import aff_load_fasta
+    af = aff_load_fasta(in_file)
+    for ac in af['data']:
+        o_file = f"{out_path}{ac}.fasta"
+        with open(o_file, 'w') as fout:
+            print(f">{ac}\n{af['data'][ac]['seq']}", file=fout)
+
