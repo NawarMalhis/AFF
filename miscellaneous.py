@@ -134,3 +134,34 @@ def split_fasta(in_file, out_path):
         with open(o_file, 'w') as fout:
             print(f">{ac}\n{af['data'][ac]['seq']}", file=fout)
 
+def split_morf_chibi(in_file, out_path):
+    prd_list = ['MCW', 'MCL', 'MC']
+    # fout = {'MCW': None, 'MCL': None, 'MC': None}  # , 'IDP': None}
+    ac = ''
+    fout = {}
+    for prd in prd_list:
+        fout[prd] = None
+        if not os.path.isdir(f"{out_path}/{prd}"):
+            os.system(f"mkdir {out_path}/{prd}")
+    with open(in_file, 'r') as fin:
+        for line in fin:
+            line = line.strip()
+            if len(line) == 0:
+                continue
+            if line[0] == '#':
+                continue
+            if line[0] == '>':
+                ac = line[1:]
+                for prd in fout:
+                    if fout[prd] is not None:
+                        if not fout[prd].closed:
+                            fout[prd].close()
+                    fout[prd] = open(f"{out_path}/{prd}/{ac}.caid", 'w')
+                    print(f">{ac}", file = fout[prd])
+                continue
+            lst = line.split()
+            for ii, prd in enumerate(prd_list):
+                print(f"{lst[0]}\t{lst[1]}\t{lst[2 + ii]}", file = fout[prd])
+        for prd in prd_list:
+            if not fout[prd].closed:
+                fout[prd].close()

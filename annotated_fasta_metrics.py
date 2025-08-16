@@ -11,10 +11,10 @@ colors_list = ['red', 'blue', 'forestgreen', 'limegreen', 'brown', 'pink', 'toma
 
 # this add 'index' for what to delete and 'Y'
 def _mask_ac(af1, tag):
-    msk = list(af1[tag].replace('1', '0').replace('-', '1'))
+    msk = list(af1['tags'][tag].replace('1', '0').replace('-', '1'))
     msk2 = [eval(i) for i in msk]  # list of ints
-    af1['index'] = np.nonzero(msk2)  # Return the indices of the elements that are non-zero (needs not to be included).
-    af1['Y'] = [eval(i) for i in np.delete(list(af1[tag]), af1['index'])] # replace eval with int
+    af1['tags']['index'] = np.nonzero(msk2)  # Return the indices of the elements that are non-zero (needs not to be included).
+    af1['tags']['Y'] = [eval(i) for i in np.delete(list(af1['tags'][tag]), af1['tags']['index'])] # replace eval with int
 
 
 def _get_yx_dict(af, tag):
@@ -32,8 +32,8 @@ def _get_yx_dict(af, tag):
         miss_ac = []
         for ac in af['data']:
             if prd in af['data'][ac]['scores']:
-                yy = np.concatenate((yy, af['data'][ac]['Y']))
-                sc = np.concatenate((sc, np.delete(af['data'][ac]['scores'][prd], af['data'][ac]['index'])))
+                yy = np.concatenate((yy, af['data'][ac]['tags']['Y']))
+                sc = np.concatenate((sc, np.delete(af['data'][ac]['scores'][prd], af['data'][ac]['tags']['index'])))
             else:
                 miss_ac.append(ac)
         yx_dict[prd] = {'yy': yy, 'sc': sc, 'miss_ac': miss_ac}
@@ -217,4 +217,21 @@ def aff_success_rate(af, tag, prd_list, success_rate_file=None, success_data_fil
     for prd in prd_list:
         print(f"{prd}\t{success_rate_dict[prd]:1.4f}", file=sr_out)
     return success_rate_dict
+
+
+def aff_violin_plot(data, labels, positions=None, showmeans=True, title=None):
+    fig, ax = plt.subplots(nrows=1, ncols=1)
+    ax.violinplot(data, points=200, positions=positions, showmeans=showmeans)
+    if title:
+        ax.set_title(title)
+    else:
+        ax.set_title('Violin plot')
+
+    ax.yaxis.grid(True)
+    ax.set_xticks([y + 1 for y in range(len(labels))],
+                  labels=labels)
+    ax.set_xlabel('Tags')
+    ax.set_ylabel('IUPred 3 short')
+
+    plt.show()
 
