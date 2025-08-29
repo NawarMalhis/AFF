@@ -1,6 +1,6 @@
 import copy
 from crc64iso.crc64iso import crc64
-from miscellaneous import get_url_response
+from miscellaneous import get_url_response, get_uniparc_id
 # import requests
 
 
@@ -22,8 +22,9 @@ def annotated_fasta(data_name: str='Data has no Name', database_list: list=None,
 
 def aff_load0(in_file: str, data_name: str='Data has no Name', accession: str=None):  # , _mark=None
     af_sequences = {}
-    tags = []
-    name_tags = []
+    tags_list = []
+    tags_dict = {}
+    database_list = []
     _more_tags = True
     with open(in_file, 'r') as fin:
         ac = ''
@@ -36,52 +37,55 @@ def aff_load0(in_file: str, data_name: str='Data has no Name', accession: str=No
                     _lst = line.split()
                     if len(_lst) > 1:
                         if _lst[1] == 'TAG':
-                            tags.append(_lst[2])
+                            tags_list.append(_lst[2])
+                            tags_dict[_lst[2]] = 'tag from an old af format'
                 continue
             _more_tags = False
 
             if line[0] == '>':
                 ac_lst = line[1:].split('|')
                 ac = ac_lst[0]
-                af_sequences[ac] = {'seq': '', 'scores': {}}
-                for extra in ac_lst[1:]:
-                    ex_lst = extra.split('=')
-                    if len(ex_lst) < 2:
-                        continue
-                    af_sequences[ac][ex_lst[0]] = ex_lst[1]
-                    if ex_lst[0] not in name_tags:
-                        name_tags.append(ex_lst[0])
+                af_sequences[ac] = {'seq': '', 'tags': {}, 'databases': {}, 'scores': {}}
+                # for extra in ac_lst[1:]:
+                #     ex_lst = extra.split('=')
+                #     if len(ex_lst) < 2:
+                #         continue
+                #     af_sequences[ac][ex_lst[0]] = ex_lst[1]
+                #     if ex_lst[0] not in database_list:
+                #         database_list.append(ex_lst[0])
                 continue
-            af_sz = len(af_sequences[ac])
+            # af_sz = len(af_sequences[ac])
             if af_sequences[ac]['seq'] == '':
                 af_sequences[ac]['seq'] = line
-                tg_i0 = af_sz  # len(af_sequences[ac])
+                ii = 0
+                # tg_i0 = af_sz  # len(af_sequences[ac])
             else:
-                af_sequences[ac][tags[af_sz - tg_i0]] = line.replace('x', '-')
+                af_sequences[ac]['tags'][tags_list[ii]] = line.replace('x', '-')
+                ii += 1
             continue
-    af0 = {'data': af_sequences, 'metadata': {'tags': tags, 'name_tags': name_tags, 'statistics': None}}
+    af = {'data': af_sequences, 'metadata': {'tags_dict': tags_dict, 'tags_list': tags_list,
+                                             'database_list': database_list, 'statistics': None,
+                                             'accession': '', 'data_name': 'No Name'}}
     # -------------------------------------------------------------------------------------------------------
     # for ac in af0['data']:
     #     for ntg in af0['metadata']['name_tags']:
     #
-    af = annotated_fasta(data_name=data_name)
-    for tg in af0['metadata']['tags']:
-        af['metadata']['tags_dict'][tg] = 'xxx'
-    if accession is None:
-        accession = 'Fasta'
-    af['metadata']['accession'] = accession
-    af['metadata']['names_list'].append(accession)
-    for ntg in af0['metadata']['name_tags']:
-        af['metadata']['names_list'].append(ntg.split(';'))
-    for ac in af0['data']:
-        af['data'][ac] = af0['data'][ac]
-        af['data'][ac][accession] = [ac]
-        for ntg in af0['metadata']['name_tags']:
-            af['data'][ac][ntg] = af0['data'][ac][ntg].split(';')
-    # print(len(af['data']), flush=True)
-    # for ac in af['data']:
-    #     print(ac, list(af['data'][ac].keys()))
-    _gen_database_counts(af)
+    # af = annotated_fasta(data_name=data_name)
+    # for tg in af0['metadata']['tags']:
+    #     af['metadata']['tags_dict'][tg] = 'xxx'
+    # if accession is None:
+    #     accession = 'Fasta'
+    # af['metadata']['accession'] = accession
+    # af['metadata']['database_list'].append(accession)
+    # for ntg in af0['metadata']['name_tags']:
+    #     af['metadata']['database_list'].append(ntg.split(';'))
+    # for ac in af0['data']:
+    #     af['data'][ac] = af0['data'][ac]
+    #     # af['data'][ac][accession] = [ac]
+    #     for ntg in af0['metadata']['database_list']:
+    #         af['data'][ac]['databases'][ntg] = af0['data'][ac][ntg].split(';')
+    #
+    # _gen_database_counts(af)
     return af
 
 
@@ -502,17 +506,18 @@ def aff_save_simple(af, f_name: str, tag: str):
     return
 
 
-def aff_save_fasta(af, f_name: str):
+def aff_save_fasta(af, f_name: str, databases=False):
     with open(f_name, 'w') as fout:
         for ac in af['data']:
             ac_o = ac
-            for ntg in af['metadata']['database_list']:
-                if ntg in af['data'][ac]['databases']:
-                    if len(af['data'][ac]['databases'][ntg]) > 0:
-                        ac_o = f"{ac_o}|{ntg}={af['data'][ac]['databases'][ntg][0]}"
-                        if len(af['data'][ac]['databases'][ntg]) > 1:
-                            for xx in af['data'][ac]['databases'][ntg][1:]:
-                                ac_o = f"{ac_o};{xx}"
+            if databases:
+                for ntg in af['metadata']['database_list']:
+                    if ntg in af['data'][ac]['databases']:
+                        if len(af['data'][ac]['databases'][ntg]) > 0:
+                            ac_o = f"{ac_o}|{ntg}={af['data'][ac]['databases'][ntg][0]}"
+                            if len(af['data'][ac]['databases'][ntg]) > 1:
+                                for xx in af['data'][ac]['databases'][ntg][1:]:
+                                    ac_o = f"{ac_o};{xx}"
             print(f">{ac_o}\n{af['data'][ac]['seq']}", file=fout)
 
 
@@ -624,8 +629,11 @@ def aff_add_tag(af, tag: str, info: str='New tag'):
 
 
 # new func
-def aff_add_databases(af, requested_databases=None, max_id_count=10, d_file=None, verbose=False):
+def aff_add_databases(af, requested_databases=None, max_id_count=10, d_file=None, uo_set=None,
+                      source_id='Source_ID', verbose=False):
+    id_dict = {}
     fout = None
+    # print(uo_set)
     if d_file:
         print(f"Opening {d_file}", flush=True)
         fout = open(d_file, 'w')
@@ -634,43 +642,46 @@ def aff_add_databases(af, requested_databases=None, max_id_count=10, d_file=None
     if 'OX' not in af['metadata']['database_list']:
         af['metadata']['database_list'].append('OX')
 
+    af2 = annotated_fasta()
+    af2['metadata'] = af['metadata']
+    if source_id not in af2['metadata']['database_list']:
+        af2['metadata']['database_list'] = [source_id] + af2['metadata']['database_list']
+
     for ii, ac in enumerate(af['data']):
+        if uo_set is not None:  # use only
+            if ac not in uo_set:
+                # print(ac)
+                continue
         if verbose:
             print(f"{ii:,}\t{ac}", end='\t', flush=True)  # \t{list(af['data'][ac].keys())}
         else:
             print(f"{ii:,}\t{ac}", flush=True)
-        aff_get_seq_databases(af=af, ac=ac, requested_databases=requested_databases,
-                              max_id_count=max_id_count, fout=fout, verbose=verbose)
+        up = aff_get_seq_databases(af=af, ac=ac, requested_databases=requested_databases,
+                                   max_id_count=max_id_count, fout=fout, verbose=verbose)
+        if up:
+            id_dict[ac] = up
+            if up not in af2['data']:
+                af2['data'][up] = af['data'][ac]
+            else:
+                merge_entries(af2['data'][up], af['data'][ac])
+            if source_id not in af2['data'][up]['databases']:
+                af2['data'][up]['databases'][source_id] = [ac]
+            elif ac not in af2['data'][up]['databases'][source_id]:
+                af2['data'][up]['databases'][source_id].append(ac)
+    return af2, id_dict
 
 
-# def _get_all_ids(ac):
-#     url = f"https://rest.uniprot.org/uniprotkb/{ac}.json"
-#     response = None
-#     for attempt in range(1, 4):
-#         try:
-#             response = requests.get(url)
-#             break
-#         except Exception as e:
-#             print(f"Attempt {attempt} failed: {url}")
-#
-#     ret_dict = {}
-#     if response.ok:
-#         data = response.json()
-#         _taxa = data.get('organism')
-#         if _taxa:
-#             if 'taxonId' in _taxa:
-#                 ox = _taxa['taxonId']
-#                 ret_dict['OX'] = [ox]
-#         # else:
-#         #     print(f"============= None Taxa\t{ac}", flush=True)
-#         for xref in data.get("uniProtKBCrossReferences", []):
-#             _db = xref["database"]
-#             if _db not in ret_dict:
-#                 ret_dict[_db] = []
-#             ret_dict[_db].append(xref["id"])
-#     for _db in ret_dict:
-#         ret_dict[_db] = list(set(ret_dict[_db]))
-#     return ret_dict
+def merge_entries(into, entry):
+    if len(into['seq']) != len(entry['seq']):
+        print(f"Error len(seq) unequal:\t{len(into['seq'])}\t{len(entry['seq'])}")
+        exit(1)
+    if into['seq'] != entry['seq']:
+        print(f"Error seq")
+    for tg in entry['tags']:
+        if tg not in into['tags']:
+            into['tags'][tg] = entry['tags'][tg]
+        else:
+            into['tags'][tg] = merge_annotations(ann1=into['tags'][tg], ann2=entry['tags'][tg])
 
 
 def _get_string_counts(af):
@@ -768,7 +779,10 @@ def _process_uniprot_obsolete(in_up_list, seq, max_up_count=10, verbose=False):
 # new func
 def _process_uniprot_list(in_up_list, seq, db_dict, md_db_list, requested_databases=None, max_up_count=10,
                           fout=None, verbose=False):
+    up2 = None
     for ac in in_up_list:
+        if '.' in ac:
+            continue
         url = f'https://rest.uniprot.org/uniprotkb/{ac}.json'
         response = get_url_response(url)
         if response is None:
@@ -790,6 +804,8 @@ def _process_uniprot_list(in_up_list, seq, db_dict, md_db_list, requested_databa
         # ADD ac
         if ac not in db_dict['UniProt']:
             db_dict['UniProt'].append(ac)
+        if up2 is None:
+            up2 = get_uniparc_id(ac)
         tsv_out = {}
 
         # ADD ox
@@ -826,7 +842,7 @@ def _process_uniprot_list(in_up_list, seq, db_dict, md_db_list, requested_databa
                 for xx in tsv_out[_db][1:]:
                     print(f";{xx}", end='', file=fout)
             print(flush=True, file=fout)
-    return
+    return up2
 
 
 # new func
@@ -886,16 +902,16 @@ def aff_get_seq_databases(af, ac, requested_databases=None, max_id_count=10, fou
             print(f"\t{len(ac_list2[0])}\t{len(ac_list2[1])}", end='', flush=True)
     else:
         # print somthing
-        return
+        return None
 
     if 'UniProt' not in af['data'][ac]['databases']:
         af['data'][ac]['databases']['UniProt'] = []
     if 'OX' not in af['data'][ac]['databases']:
         af['data'][ac]['databases']['OX'] = []
 
-    _process_uniprot_list(in_up_list=ac_list2[0], db_dict=af['data'][ac]['databases'],
-                          md_db_list=af['metadata']['database_list'], max_up_count=max_id_count,
-                          requested_databases=requested_databases, seq=seq, fout=fout, verbose=verbose)
+    up2 = _process_uniprot_list(in_up_list=ac_list2[0], db_dict=af['data'][ac]['databases'],
+                                md_db_list=af['metadata']['database_list'], max_up_count=max_id_count,
+                                requested_databases=requested_databases, seq=seq, fout=fout, verbose=verbose)
     if len(af['data'][ac]['databases']['UniProt']) == 0:
         af['data'][ac]['databases']['UniProt'] = _process_uniprot_obsolete(in_up_list=ac_list2[1], seq=seq,
                                                                            max_up_count=max_id_count, verbose=verbose)
@@ -909,7 +925,7 @@ def aff_get_seq_databases(af, ac, requested_databases=None, max_id_count=10, fou
 
     if verbose:
         print(f"\t{len(af['data'][ac]['databases']['UniProt'])}", flush=True)
-    return
+    return up2
 
 
 

@@ -165,3 +165,16 @@ def split_morf_chibi(in_file, out_path):
         for prd in prd_list:
             if not fout[prd].closed:
                 fout[prd].close()
+
+
+def get_uniparc_id(ac):
+    url = f'https://rest.uniprot.org/uniprotkb/{ac}.json'
+    response = get_url_response(url)
+    if response is None:
+        print(f"Error, response is None for {ac}", flush=True)
+        return None
+    data = response.json()
+    if "extraAttributes" not in data:
+        return None
+    return data["extraAttributes"]['uniParcId']
+

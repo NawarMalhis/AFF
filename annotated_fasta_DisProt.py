@@ -73,10 +73,10 @@ def aff_process_go(dp_path, verbose=False):
 
 def aff_disprot_process(release, dp_path, verbose=False):
     print(f"aff_process_disprot: {release}", flush=True)
-    PDB_ECO_list = ['ECO:0006042', 'ECO:0000218', 'ECO:0000219', 'ECO:0006222', 'ECO:0006223', 'ECO:0006043',
-                    'ECO:0000220', 'ECO:0000221', 'ECO:0006243', 'ECO:0006244', 'ECO:0006062', 'ECO:0006201',
-                    'ECO:0006202', 'ECO:0006251', 'ECO:0006252',  'ECO:0006220', 'ECO:0006210',
-                    'ECO:0000250', 'ECO:0000208', 'ECO:0000211', 'ECO:0006064', 'ECO:0006065', 'ECO:0006066']
+    # PDB_ECO_list = ['ECO:0006042', 'ECO:0000218', 'ECO:0000219', 'ECO:0006222', 'ECO:0006223', 'ECO:0006043',
+    #                 'ECO:0000220', 'ECO:0000221', 'ECO:0006243', 'ECO:0006244', 'ECO:0006062', 'ECO:0006201',
+    #                 'ECO:0006202', 'ECO:0006251', 'ECO:0006252',  'ECO:0006220', 'ECO:0006210',
+    #                 'ECO:0000250', 'ECO:0000208', 'ECO:0000211', 'ECO:0006064', 'ECO:0006065', 'ECO:0006066']
     e_set = set()
     tags_names_dict = {'IDR': 'Protein disordered region', 'DtO': 'Disordered to ordered transition',
                        'Linker': 'Linker regions', 'binding': 'IDR binding in general',
@@ -84,7 +84,7 @@ def aff_disprot_process(release, dp_path, verbose=False):
                        'binding_ion': 'IDR-binding to ions', 'binding_lipid': 'IDR-binding to lipids',
                        'binding_SM': 'IDR binding to small molecule',
                        'binding_protein_PDB': 'IDR-binding to proteins based on PDB evidence',
-                       'binding_protein_none_PDB': 'IDR-binding to proteins based on none PDB evidence'}
+                       'binding_protein_nPDB': 'IDR-binding to proteins based on none PDB evidence'}
 
     tags_list = list(tags_names_dict.keys())
 
@@ -154,7 +154,7 @@ def aff_disprot_process(release, dp_path, verbose=False):
                             e_set.add(eid)
                             tag2 = 'binding_protein_PDB'
                         else:
-                            tag2 = 'binding_protein_none_PDB'
+                            tag2 = 'binding_protein_nPDB'
                         for i in range(st, ed):
                             disprot['data'][ac]['tags'][f"lst_{tag2}"][i] = '1'
 

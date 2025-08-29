@@ -29,6 +29,7 @@ def aff_load_prd_merged_caid_scores(af, caid_scores_file, prd):
         if prd in af['data'][ac]['scores']:
             if len(af['data'][ac]['scores'][prd]) != len(af['data'][ac]['seq']):
                 # scores do not match this seq
+                print(f"{prd}\t{ac}\t{len(af['data'][ac]['scores'][prd])}\t{len(af['data'][ac]['seq'])}")
                 del af['data'][ac]['scores'][prd]
 
 
@@ -46,6 +47,14 @@ def aff_load_protein_caid_scores(in_file):
             else:
                 sc_list.append(float(line.split()[2]))
     return np.array(sc_list, dtype='float32')
+
+
+def aff_save_protein_caid_scores(af, ac, prd, out_file):
+    with open(out_file, 'w') as fout:
+        print(f">{ac}", file=fout)
+        for ii, sc in enumerate(af['data'][ac]['scores'][prd]):
+            print(f"{ii+1}\t{af['data'][ac]['seq'][ii]}\t{sc}", file=fout)
+    return
 
 
 def aff_load_caid_scores(af, scores_path, prd_list, merged=True, remove_missing_scores=False):
@@ -67,6 +76,8 @@ def aff_load_caid_scores(af, scores_path, prd_list, merged=True, remove_missing_
                 if 'scores' not in af['data'][ac]:
                     af['data'][ac]['scores'] = {}
                 af['data'][ac]['scores'][prd] = aff_load_protein_caid_scores(in_file=f'{_p}{ac}.caid')
+                if len(af['data'][ac]['scores'][prd]) != len(af['data'][ac]['seq']):
+                    print(prd, ac, len(af['data'][ac]['scores'][prd]), len(af['data'][ac]['seq']))
 
     used_prd_set = set()
     ac_list = list(af['data'].keys())
