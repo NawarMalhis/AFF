@@ -618,6 +618,14 @@ def aff_remove_no_class_any(af, cl: str):
 
 
 # OK
+def aff_remove_short(af, cut=15):
+    ac_list = list(af['data'].keys())
+    for ac in ac_list:
+        if len(af['data'][ac]['seq']) < cut:
+            del af['data'][ac]
+
+
+# OK
 def aff_add_tag(af, tag: str, info: str='New tag'):
     if tag not in af['metadata']['tags_dict']:
         af['metadata']['tags_list'].append(tag)

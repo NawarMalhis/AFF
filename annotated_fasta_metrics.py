@@ -219,19 +219,26 @@ def aff_success_rate(af, tag, prd_list, success_rate_file=None, success_data_fil
     return success_rate_dict
 
 
-def aff_violin_plot(data, labels, positions=None, showmeans=True, title=None):
+def aff_violin_plot(data, labels, positions=None, showmeans=True, title=None, display_means=None,
+                    fontsize=18):
+    plt.rcParams.update({'font.size': 14})
+    if display_means is None:
+        display_means = []
     fig, ax = plt.subplots(nrows=1, ncols=1)
+    fig.set_size_inches(18, 7)
     ax.violinplot(data, points=200, positions=positions, showmeans=showmeans)
     if title:
-        ax.set_title(title)
-    else:
-        ax.set_title('Violin plot')
+        ax.set_title(title, fontsize=fontsize)
+
+    for ii in display_means:
+        mean = sum(data[ii]) / len(data[ii])
+        ax.plot([0.8, len(data) + 0.2], [mean, mean], color='black', linestyle='dashed')
 
     ax.yaxis.grid(True)
     ax.set_xticks([y + 1 for y in range(len(labels))],
                   labels=labels)
-    ax.set_xlabel('Tags')
-    ax.set_ylabel('IUPred 3 short')
-
+    # ax.set_xlabel('Tags', fontsize=fontsize)
+    ax.set_ylabel('IUPred 3 short', fontsize=fontsize)
+    plt.savefig('violin.png')
     plt.show()
 

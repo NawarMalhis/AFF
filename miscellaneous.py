@@ -136,6 +136,7 @@ def split_fasta(in_file, out_path):
 
 def split_morf_chibi(in_file, out_path):
     prd_list = ['MCW', 'MCL', 'MC']
+    # prd_list = ['MCL', 'MC']
     # fout = {'MCW': None, 'MCL': None, 'MC': None}  # , 'IDP': None}
     ac = ''
     fout = {}
@@ -165,6 +166,99 @@ def split_morf_chibi(in_file, out_path):
         for prd in prd_list:
             if not fout[prd].closed:
                 fout[prd].close()
+
+
+def split_f_morf_pred(in_file, out_path):
+    with open(in_file, 'r') as fin:
+        ac = ''
+        seq = ''
+        cnt = 1
+        for line in fin:
+            line = line.strip()
+            if len(line) == 0:
+                continue
+            if line[0] == '>':
+                ac = line[1:]
+                seq = ''
+                cnt = 1
+                continue
+            if cnt == 1:
+                seq = line.upper()
+                cnt += 1
+                continue
+            if cnt == 2:
+                sc_list = line.split(',')
+                if len(ac) < 2 or len(seq) < 5:
+                    continue
+                with open(f"{out_path}{ac}.caid", 'w') as fout:
+                    print(f">{ac}", file=fout)
+                    for ii in range(len(seq)):
+                        print(f"{ii+1}\t{seq[ii]}\t{sc_list[ii]}", file=fout)
+                ac = ''
+                seq = ''
+            cnt += 1
+
+
+def split_diso_rdp_bind(in_file, out_path):
+    with open(in_file, 'r') as fin:
+        ac = ''
+        seq = ''
+        cnt = 1
+        for line in fin:
+            line = line.strip()
+            if len(line) == 0:
+                continue
+            if line[0] == '>':
+                ac = line[1:]
+                seq = ''
+                cnt = 1
+                continue
+            if cnt == 1:
+                seq = line.upper()
+                cnt += 1
+                continue
+            if cnt == 7:
+                sc_list = line.split(':')[1].split(',')
+                if len(ac) < 2 or len(seq) < 5:
+                    continue
+                with open(f"{out_path}{ac}.caid", 'w') as fout:
+                    print(f">{ac}", file=fout)
+                    for ii in range(len(seq)):
+                        print(f"{ii+1}\t{seq[ii]}\t{sc_list[ii]}", file=fout)
+                ac = ''
+                seq = ''
+            cnt += 1
+
+
+def split_portal(af, in_file, prd_dict, out_path):
+    print(in_file, len(af['data']))
+    dta = []
+    seq_lst = []
+    with open(in_file, 'r') as fin:
+        for line in fin:
+            line = line.strip()
+            if len(line) < 3:
+                continue
+            if 'Position' in line:
+                continue
+            lst = line.split()
+            dd = {}
+            seq_lst.append(lst[1])
+            dta.append({})
+            for prd in prd_dict:
+                dta[-1][prd] = float(lst[prd_dict[prd]])
+    seq = ''.join(seq_lst)
+    ac = ''
+    for _ac in af['data']:
+        if af['data'][_ac]['seq'] == seq:
+            ac = _ac
+            break
+    for prd in prd_dict:
+        out_file = f"{out_path}{prd}/{ac}.caid"
+        with open(out_file, 'w') as fout:
+            print(f">{ac}", file=fout)
+            for ii in range(len(seq)):
+                print(f"{ii+1}\t{seq[ii]}\t{dta[ii][prd]}", file=fout)
 
 
 def get_uniparc_id(ac):
