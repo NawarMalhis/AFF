@@ -506,7 +506,7 @@ def aff_save_simple(af, f_name: str, tag: str):
     return
 
 
-def aff_save_fasta(af, f_name: str, databases=False):
+def aff_save_fasta(af, f_name: str, databases=False, mark: str =''):
     with open(f_name, 'w') as fout:
         for ac in af['data']:
             ac_o = ac
@@ -518,7 +518,7 @@ def aff_save_fasta(af, f_name: str, databases=False):
                             if len(af['data'][ac]['databases'][ntg]) > 1:
                                 for xx in af['data'][ac]['databases'][ntg][1:]:
                                     ac_o = f"{ac_o};{xx}"
-            print(f">{ac_o}\n{af['data'][ac]['seq']}", file=fout)
+            print(f">{mark}{ac_o}\n{af['data'][ac]['seq']}", file=fout)
 
 
 def aff_merge_simple(af_to, af_from):

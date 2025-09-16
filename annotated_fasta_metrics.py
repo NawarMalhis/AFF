@@ -17,7 +17,7 @@ def _mask_ac(af1, tag):
     af1['tags']['Y'] = [eval(i) for i in np.delete(list(af1['tags'][tag]), af1['tags']['index'])] # replace eval with int
 
 
-def _get_yx_dict(af, tag):
+def get_yx_dict(af, tag):
     yx_dict = {}
     prd_list = []
     for ac in af['data']:
@@ -70,6 +70,44 @@ def _filter_for_success(af, tag, cut=5):
             del af['data'][ac]
 
 
+def class_swap_dict(yy_a, yy_b, sc_a, sc_b):
+    yy_a1_b0 = []
+    sc_a1_b0 = []
+    yy_a0_b1 = []
+    sc_a0_b1 = []
+    for ii in range(len(yy_a)):
+        if yy_a[ii] == 1:
+            yy_a1_b0.append(1)
+            sc_a1_b0.append(sc_a[ii])
+        else:
+            yy_a0_b1.append(0)
+            sc_a0_b1.append(sc_a[ii])
+    for ii in range(len(yy_b)):
+        if yy_b[ii] == 0:
+            yy_a1_b0.append(0)
+            sc_a1_b0.append(sc_b[ii])
+        else:
+            yy_a0_b1.append(1)
+            sc_a0_b1.append(sc_b[ii])
+    yy = {'a1_b0': np.array(yy_a1_b0, dtype='int32'), 'a0_b1': np.array(yy_a0_b1, dtype='int32')}
+    sc = {'a1_b0': np.array(sc_a1_b0, dtype='float32'), 'a0_b1': np.array(sc_a0_b1, dtype='float32')}
+    return yy, sc
+
+
+def aff_class_swap_auc(af_a, tag_a, af_b, tag_b, prd_list, auc_file=None):
+    auc_dict = {}
+    yx_a_dict = get_yx_dict(af_a, tag_a)
+    yx_b_dict = get_yx_dict(af_b, tag_b)
+    for prd in prd_list:
+        yy, sc = class_swap_dict(yy_a=yx_a_dict[prd]['yy'], yy_b=yx_b_dict[prd]['yy'],
+                                 sc_a=yx_a_dict[prd]['sc'], sc_b=yx_b_dict[prd]['sc'])
+        auc_dict[prd] = {'a': roc_auc_score(yx_a_dict[prd]['yy'], yx_a_dict[prd]['sc']),
+                         'b': roc_auc_score(yx_b_dict[prd]['yy'], yx_b_dict[prd]['sc']),
+                         'a1_b0': roc_auc_score(yy['a1_b0'], sc['a1_b0']),
+                         'a0_b1': roc_auc_score(yy['a0_b1'], sc['a0_b1'])}
+    return auc_dict
+
+
 def aff_roc(af, tag, prd_list, title=None, min_auc=0.5, display=True, line_format_dict=None,
             figure_file=None, auc_file=None, legend_font_size=12, gray_label='Others', sort_auc=True):  #
     if title is None:
@@ -78,7 +116,7 @@ def aff_roc(af, tag, prd_list, title=None, min_auc=0.5, display=True, line_forma
 
     lf_dict = _fill_line_format_dict(prd_list=prd_list, line_format_dict=line_format_dict)
     auc_out = None
-    yx_dict = _get_yx_dict(af, tag)
+    yx_dict = get_yx_dict(af, tag)
     auc_dict = {}
     plt.rcParams.update({'font.size': 18})
     plt.rcParams['figure.figsize'] = [10, 9]
@@ -90,6 +128,7 @@ def aff_roc(af, tag, prd_list, title=None, min_auc=0.5, display=True, line_forma
     if display or figure_file is not None:
         if auc_file:
             auc_out = open(auc_file, 'w')
+            print(f"Sequences count:\t{len(af['data'])}", file=auc_out)
         print("Predictor\tAUC\tmissing_seq\ttotal_AAs", file=auc_out)
         for formated in [True, False]:
             for prd in auc_dict:
@@ -131,7 +170,7 @@ def aff_precision_recall(af, tag, prd_list, title=None, min_recall=0.05, display
     if plotted_list is None:
         plotted_list = prd_list
     lf_dict = _fill_line_format_dict(prd_list, line_format_dict)
-    yx_dict = _get_yx_dict(af, tag)
+    yx_dict = get_yx_dict(af, tag)
     aps_dict = {}
     plt.rcParams.update({'font.size': 18})
     plt.rcParams['figure.figsize'] = [10, 9]
@@ -226,6 +265,7 @@ def aff_violin_plot(data, labels, positions=None, showmeans=True, title=None, di
         display_means = []
     fig, ax = plt.subplots(nrows=1, ncols=1)
     fig.set_size_inches(18, 7)
+    fig.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
     ax.violinplot(data, points=200, positions=positions, showmeans=showmeans)
     if title:
         ax.set_title(title, fontsize=fontsize)
