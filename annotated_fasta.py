@@ -1,5 +1,5 @@
 import copy
-from crc64iso.crc64iso import crc64
+# from crc64iso.crc64iso import crc64
 from miscellaneous import get_url_response, get_uniparc_id
 # import requests
 
@@ -936,4 +936,27 @@ def aff_get_seq_databases(af, ac, requested_databases=None, max_id_count=10, fou
     return up2
 
 
+def aff_tag_size(af, tag, sz_range=None):
+    if sz_range is None:
+        return
+    if tag not in af['metadata']['tags_list']:
+        return
+    print(f"Size:\t{sz_range}")
+    _from = sz_range[0]
+    _to = sz_range[1]
+    for ac in af['data']:
+        lst = list(af['data'][ac]['tags'][tag])
+        ss = af['data'][ac]['tags'][tag].replace('0', '-')
+        lst2 = [xx for xx in ss.split('-') if xx != '']
+        st = 0
+        for xx1 in lst2:
+            st = ss.find(xx1, st)
+            if sz_range[0] <= len(xx1) < sz_range[1]:
+                # print(ac, st+1, ss)
+                pass
+            else:
+                for ii in range(st, st+len(xx1)):
+                    lst[ii] = '-'
+            st = st + len(xx1)
+        af['data'][ac]['tags'][tag] = ''.join(lst)
 

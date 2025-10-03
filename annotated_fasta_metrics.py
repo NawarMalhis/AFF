@@ -259,10 +259,12 @@ def aff_success_rate(af, tag, prd_list, success_rate_file=None, success_data_fil
 
 
 def aff_violin_plot(data, labels, positions=None, showmeans=True, title=None, display_means=None,
-                    fontsize=18):
+                    fontsize=18, ylabel='', hh_lines=None, f_name=None):
     plt.rcParams.update({'font.size': 14})
     if display_means is None:
         display_means = []
+    if hh_lines is None:
+        hh_lines = []
     fig, ax = plt.subplots(nrows=1, ncols=1)
     fig.set_size_inches(18, 7)
     fig.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
@@ -273,12 +275,45 @@ def aff_violin_plot(data, labels, positions=None, showmeans=True, title=None, di
     for ii in display_means:
         mean = sum(data[ii]) / len(data[ii])
         ax.plot([0.8, len(data) + 0.2], [mean, mean], color='black', linestyle='dashed')
+    for ii, vv in enumerate(hh_lines):
+        ax.plot([ii + 0.8, ii + 1.2], [vv, vv], color='red', linestyle='dashed')
 
     ax.yaxis.grid(True)
     ax.set_xticks([y + 1 for y in range(len(labels))],
                   labels=labels)
     # ax.set_xlabel('Tags', fontsize=fontsize)
-    ax.set_ylabel('IUPred 3 short', fontsize=fontsize)
-    plt.savefig('violin.png')
+    ax.set_ylabel(ylabel, fontsize=fontsize)
+    if f_name:
+        plt.savefig(f_name)
     plt.show()
 
+
+def aff_violin_h_plot(data, labels, positions=None, showmeans=True, title=None, display_means=None,
+                      fontsize=18, ylabel='', hh_lines=None, f_name=None):
+    plt.rcParams.update({'font.size': 14})
+    if display_means is None:
+        display_means = []
+    if hh_lines is None:
+        hh_lines = []
+    fig, ax = plt.subplots(nrows=1, ncols=1)
+    fig.set_size_inches(10, 14)
+    fig.subplots_adjust(left=0.32, right=0.95, top=0.95, bottom=0.05)
+    ax.violinplot(data, points=200, positions=positions, showmeans=showmeans, side='high', vert=False)
+    if title:
+        ax.set_title(title, fontsize=fontsize)
+
+    for ii in display_means:
+        fmn = sum(data[ii]) / len(data[ii])
+        ax.plot([fmn, fmn], [0.2, len(data)+0.8], color='black', linestyle='dashed')
+
+    for ii, vv in enumerate(hh_lines):
+        ax.plot([vv, vv], [ii + 0.8, ii + 1.2], color='red', linestyle='dashed')
+
+    ax.yaxis.grid(True)
+    ax.set_yticks([y + 1 for y in range(len(labels))],
+                  labels=labels)
+    # ax.set_xlabel('Tags', fontsize=fontsize)
+    # ax.set_ylabel(ylabel, fontsize=fontsize)
+    if f_name:
+        plt.savefig(f_name)
+    plt.show()
